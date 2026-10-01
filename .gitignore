@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# CONFIDENTIAL -- never commit
+# ---------------------------------------------------------------------------
+
+# Persistent Chrome profile: contains the logged-in Uber session cookies.
+browser_profile/
+browser_profile*/
+*_profile/
+
+# Generated run output: screenshots show the account and nearby saved places,
+# logs contain place searches, page URLs and diagnostic network details,
+# results contain the routes and prices you fetched.
+data/screenshots/
+data/results/*
+!data/results/.gitkeep
+data/*.log
+data/*.csv
+*.log
+
+# Secrets / exported sessions (in case they are ever added)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+cookies*.json
+storage_state*.json
+auth*.json
+secrets*.json
+credentials*.json
+
+# ---------------------------------------------------------------------------
+# Environment / build artefacts
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+playwright-report/
+test-results/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini

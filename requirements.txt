@@ -1,0 +1,2 @@
+playwright>=1.63
+psutil>=6.0  # batch performance log: Chrome memory / process count
