@@ -28,9 +28,11 @@ Usage:
     python uber_prices.py prices --pickup "..." --destination "..." [--keep-open]
         One route: select + verify, Search, extract and validate prices, save JSON.
 
-    python uber_prices.py batch [--routes routes.json] [--only 1,2,18]
-        All pickup->destination routes from routes.json, sequentially, in ONE browser.
-        Writes data/results/batch-<ts>.json and batch-<ts>-performance.json.
+    python uber_prices.py batch [--input data/routes.csv] [--output data/results.csv] [--only 1,2,18]
+        Routes listed in the input CSV (route_id,source,destination[,category]), sequentially, in ONE
+        browser. Source/destination labels are mapped to exact Uber places via routes.json "locations".
+        Appends one row per ride (or one status row per failed route) to the output CSV, and still
+        writes data/results/batch-<ts>.json and batch-<ts>-performance.json.
         Multi-stop routes are skipped (not implemented). Stops on AUTH_REQUIRED.
 
     python uber_prices.py browser-info
@@ -49,7 +51,10 @@ Browser startup lives in browser_worker.py (PlaywrightWorker).
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
+import os
 import re
 import sys
 import time
@@ -1281,9 +1286,96 @@ def write_batch_files(batch_id: str, meta: dict, records: list[dict], summary: d
     return results_path, perf_path
 
 
+# --- CSV input / output ---------------------------------------------------------------------------
+
+ROUTES_CSV = BASE_DIR / "data" / "routes.csv"
+RESULTS_CSV = BASE_DIR / "data" / "results.csv"
+RESULTS_CSV_FIELDS = [
+    "run_id", "timestamp", "route_id", "source", "destination", "status", "reason",
+    "ride_name", "current_price", "original_price", "currency", "price_value", "original_price_value",
+    "pickup_place_id", "destination_place_id",
+]
+
+
+def load_routes_csv(path: Path) -> list[dict]:
+    """
+    Read route_id,source,destination[,category] rows into the route dicts run_route() already uses.
+    source/destination are labels that must exist in routes.json "locations" (exact-place mapping).
+    """
+    if not path.exists():
+        raise ExtractorError(f"Route input file not found: {path}")
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        missing = {"route_id", "source", "destination"} - set(reader.fieldnames or [])
+        if missing:
+            raise ExtractorError(f"{path} is missing column(s): {sorted(missing)}")
+        routes, seen = [], set()
+        for line_no, row in enumerate(reader, start=2):
+            route_id = (row.get("route_id") or "").strip()
+            source = (row.get("source") or "").strip()
+            destination = (row.get("destination") or "").strip()
+            if not (route_id or source or destination):
+                continue  # blank line
+            if not route_id.isdigit() or not source or not destination:
+                raise ExtractorError(f"{path} line {line_no}: need a numeric route_id, a source and a destination.")
+            if int(route_id) in seen:
+                raise ExtractorError(f"{path} line {line_no}: duplicate route_id {route_id}.")
+            seen.add(int(route_id))
+            routes.append({"id": int(route_id), "pickup": source, "destination": destination,
+                           "category": (row.get("category") or "").strip() or None})
+    return routes
+
+
+def result_csv_rows(batch_id: str, rec: dict) -> list[dict]:
+    """One row per extracted ride for a successful route; one status row for any other outcome."""
+    base = {"run_id": batch_id, "route_id": rec["id"], "source": rec["pickup_label"],
+            "destination": rec["destination_label"], "status": rec["status"],
+            "reason": (rec.get("reason") or "").splitlines()[0] if rec.get("reason") else ""}
+    res = rec.get("result")
+    if rec["status"] == SUCCESS and res:
+        return [{**base, "timestamp": res["fetched_at"], "ride_name": ride["ride_type"],
+                 "current_price": ride["price"], "original_price": ride["original_price"] or "",
+                 "currency": res["currency"], "price_value": ride["price_value"],
+                 "original_price_value": ride["original_price_value"] if ride["original_price_value"] is not None else "",
+                 "pickup_place_id": res["pickup_details"]["place_id"],
+                 "destination_place_id": res["destination_details"]["place_id"]}
+                for ride in res["rides"]]
+    when = rec.get("ended_at") or datetime.now().isoformat(timespec="seconds")
+    return [{**base, "timestamp": when}]
+
+
+def append_results_csv(path: Path, batch_id: str, recs: list[dict]) -> int:
+    """
+    Append rows for finished routes (history is never overwritten). Each call writes complete rows in one
+    write and fsyncs, so an interrupted run leaves every earlier route's rows intact.
+    """
+    rows = [row for rec in recs for row in result_csv_rows(batch_id, rec)]
+    if not rows:
+        return 0
+    path.parent.mkdir(parents=True, exist_ok=True)
+    is_new = not path.exists() or path.stat().st_size == 0
+    if not is_new:
+        with path.open(newline="", encoding="utf-8-sig") as f:
+            header = next(csv.reader(f), [])
+        if header != RESULTS_CSV_FIELDS:
+            raise ExtractorError(f"{path} has different columns {header}; not appending to avoid mixing formats.")
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=RESULTS_CSV_FIELDS, lineterminator="\n")
+    if is_new:
+        writer.writeheader()
+    writer.writerows(rows)
+    # utf-8-sig: a BOM only when the file is created, so Excel shows ₹/$ correctly; appends add no BOM.
+    with path.open("a", newline="", encoding="utf-8-sig") as f:
+        f.write(buffer.getvalue())
+        f.flush()
+        os.fsync(f.fileno())
+    return len(rows)
+
+
 def cmd_batch(args: argparse.Namespace) -> int:
     config = json.loads(Path(args.routes).read_text(encoding="utf-8"))
-    routes = config["routes"]
+    input_path, output_path = Path(args.input), Path(args.output)
+    routes = load_routes_csv(input_path)  # the CSV decides WHICH routes run; routes.json maps the places
     if args.only:
         wanted = {int(x) for x in args.only.split(",")}
         routes = [r for r in routes if r["id"] in wanted]
@@ -1295,6 +1387,15 @@ def cmd_batch(args: argparse.Namespace) -> int:
     meta = {"batch_id": batch_id, "started_at": started.isoformat(timespec="seconds"), "finished_at": None,
             "routes_file": str(args.routes), "region": region}
     records: list[dict] = []
+    csv_written = 0  # records already appended to the results CSV (each route is written exactly once)
+
+    def flush_csv() -> None:
+        nonlocal csv_written
+        append_results_csv(output_path, batch_id, records[csv_written:])
+        csv_written = len(records)
+
+    print(f"[INPUT]  {input_path} ({len(routes)} route(s) selected)")
+    print(f"[OUTPUT] {output_path} (append)")
     runnable = sum(1 for r in routes if not r.get("stops"))
     print(f"[BATCH] {batch_id}: {len(routes)} routes ({runnable} pickup→destination, "
           f"{len(routes) - runnable} multi-stop will be skipped)")
@@ -1337,6 +1438,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
             records.append(rec)
             print_route_record(rec, n, len(routes))
             write_batch_files(batch_id, meta, records, None)
+            flush_csv()
             if rec["status"] == SEARCH_UNAVAILABLE:
                 search_unavailable_streak += 1
             elif rec["status"] not in (SKIPPED_MULTI_STOP, CONFIG_ERROR):
@@ -1354,6 +1456,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
                                     "failed_phase": None, "timings": {}, "prices_count": 0, "result": None})
                 exit_code = 1
                 break
+        flush_csv()  # NOT_RUN rows from an early stop or a failed session check
     finally:
         t = time.perf_counter()
         worker.close()
@@ -1396,7 +1499,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
         print("Failures:")
         for f in s["failures"]:
             print(f"  #{f['id']} {f['route']}: {f['status']} [{f['phase']}] {f['reason']}")
-    print(f"\nResults:     {results_path}\nPerformance: {perf_path}")
+    print(f"\nResults:     {results_path}\nPerformance: {perf_path}\nCSV:         {output_path} (appended)")
     return exit_code if exit_code else (0 if s["failed"] == 0 else 2)
 
 
@@ -1439,9 +1542,14 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--destination", required=True)
     search.add_argument("--close", action="store_true", help="Close the browser at the end instead of leaving it open.")
 
-    batch = command("batch", "Run all routes from routes.json sequentially in ONE browser.")
-    batch.add_argument("--routes", default=str(ROUTES_FILE), help="Route config file (default: routes.json).")
-    batch.add_argument("--only", help="Comma-separated route ids to run, e.g. 1,2,18 (default: all).")
+    batch = command("batch", "Run the routes from the input CSV sequentially in ONE browser.")
+    batch.add_argument("--input", default=str(ROUTES_CSV),
+                       help="Routes to run: CSV with route_id,source,destination[,category] (default: data/routes.csv).")
+    batch.add_argument("--output", default=str(RESULTS_CSV),
+                       help="CSV that results are APPENDED to, one row per ride (default: data/results.csv).")
+    batch.add_argument("--routes", default=str(ROUTES_FILE),
+                       help="Place mapping for the source/destination labels + region check (default: routes.json).")
+    batch.add_argument("--only", help="Comma-separated route ids from the input CSV to run, e.g. 1,2 (default: all).")
 
     prices = command("prices", "Extract ride prices for one route.")
     prices.add_argument("--pickup", required=True)

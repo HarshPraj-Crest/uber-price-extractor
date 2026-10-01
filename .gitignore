@@ -15,6 +15,7 @@ data/results/*
 !data/results/.gitkeep
 data/*.log
 data/*.csv
+!data/routes.csv
 *.log
 
 # Secrets / exported sessions (in case they are ever added)

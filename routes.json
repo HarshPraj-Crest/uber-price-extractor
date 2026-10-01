@@ -1,5 +1,5 @@
 {
-  "_comment": "Route batch config. 'locations' maps each route label to the exact Uber suggestion to select: 'name' must equal the suggestion's name (case/punctuation-insensitive) and every 'address' entry must appear as whole words in its address. Mappings verified against Uber's live suggestions on 2026-09-30 (Design District and Setai updated 13:30 after Uber's suggestions changed). 'region' is a safety net: every selected place's coordinates (from Uber's page state) must be inside it.",
+  "_comment": "Place mapping for the batch. WHICH routes run now comes from data/routes.csv; the 'routes' list below is kept only as a reference (it is the only record of the 5 multi-stop routes) and is not read by the batch. 'locations' maps each route label to the exact Uber suggestion to select: 'name' must equal the suggestion's name (case/punctuation-insensitive) and every 'address' entry must appear as whole words in its address. Mappings verified against Uber's live suggestions on 2026-09-30 (Design District and Setai updated 13:30 after Uber's suggestions changed). 'region' is a safety net: every selected place's coordinates (from Uber's page state) must be inside it.",
   "region": {
     "name": "South Florida",
     "min_lat": 25.2, "max_lat": 27.0,
