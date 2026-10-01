@@ -1299,8 +1299,9 @@ RESULTS_CSV_FIELDS = [
 
 def load_routes_csv(path: Path) -> list[dict]:
     """
-    Read route_id,source,destination[,category] rows into the route dicts run_route() already uses.
+    Read route_id,source,destination[,category,stops,...] rows into the route dicts run_route() already uses.
     source/destination are labels that must exist in routes.json "locations" (exact-place mapping).
+    Other columns (distance, duration, notes) are reference data and are not used by the scraper.
     """
     if not path.exists():
         raise ExtractorError(f"Route input file not found: {path}")
@@ -1321,8 +1322,14 @@ def load_routes_csv(path: Path) -> list[dict]:
             if int(route_id) in seen:
                 raise ExtractorError(f"{path} line {line_no}: duplicate route_id {route_id}.")
             seen.add(int(route_id))
-            routes.append({"id": int(route_id), "pickup": source, "destination": destination,
-                           "category": (row.get("category") or "").strip() or None})
+            route = {"id": int(route_id), "pickup": source, "destination": destination,
+                     "category": (row.get("category") or "").strip() or None}
+            # Intermediate stops ("A|B"). A route with stops is never priced as a direct trip:
+            # run_route() marks it SKIPPED_MULTI_STOP until multi-stop support exists.
+            stops = [s.strip() for s in (row.get("stops") or "").split("|") if s.strip()]
+            if stops:
+                route["stops"] = stops
+            routes.append(route)
     return routes
 
 

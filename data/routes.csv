@@ -1,31 +1,36 @@
-route_id,source,destination,category
-1,Brickell City Centre,Kaseya Center,short
-2,Fontainebleau Miami Beach,LIV Nightclub,short
-3,Prime 112,Papi Steak,short
-4,E11EVEN Miami,Kaseya Center,short
-5,Design District,Wynwood Walls,short
-6,Setai Miami Beach,Prime 112,short
-7,South Beach,AC Hotel Miami Beach,short
-8,Playa Miami,Victory Restaurant & Lounge,short
-9,Bal Harbour,Brickell City Centre,long
-10,Fontainebleau Miami Beach,Taboo Miami,long
-11,Coconut Grove,Tootsie's Cabaret,long
-12,South Beach,Hard Rock Casino,long
-18,Miami International Airport,Brickell,airport_pickup
-19,Miami International Airport,Design District,airport_pickup
-20,Miami International Airport,Fontainebleau Miami Beach,airport_pickup
-21,Miami International Airport,South Beach,airport_pickup
-22,Fort Lauderdale Airport (FLL),Brickell,airport_pickup
-23,Victory Restaurant,Miami International Airport,airport_dropoff
-24,Brickell City Centre,Miami International Airport,airport_dropoff
-25,Fontainebleau,Miami International Airport,airport_dropoff
-26,Bal Harbour Shops,Miami International Airport,airport_dropoff
-27,South Beach,Fort Lauderdale,outbound
-28,Miami Beach,Homestead,outbound
-29,Brickell,Boca Raton,outbound
-30,Miami,West Palm Beach,outbound
-31,Davie,Miami,inbound
-32,Fort Lauderdale,South Beach,inbound
-33,Homestead,Downtown Miami,inbound
-34,Boca Raton,Brickell,inbound
-35,West Palm Beach,Miami,inbound
+route_id,source,destination,category,stops,distance_mi,duration_min,notes
+1,Brickell City Centre,Kaseya Center,short,,2,11.5,
+2,Fontainebleau Miami Beach,LIV Nightclub,short,,0.5,3.5,
+3,Prime 112,Papi Steak,short,,1,7.5,
+4,E11EVEN Miami,Kaseya Center,short,,1,7.5,
+5,Design District,Wynwood Walls,short,,2,9.5,
+6,Setai Miami Beach,Prime 112,short,,2,12.5,
+7,South Beach,AC Hotel Miami Beach,short,,3,12.5,
+8,Playa Miami,Victory Restaurant & Lounge,short,,7,20,
+9,Bal Harbour,Brickell City Centre,long,,15,37.5,
+10,Fontainebleau Miami Beach,Taboo Miami,long,,17,37.5,
+11,Coconut Grove,Tootsie's Cabaret,long,,22,42.5,
+12,South Beach,Hard Rock Casino,long,,25,50,
+13,Fontainebleau,Brickell,multi_stop,Prime 112|E11EVEN,14,38,
+14,Bal Harbour,South Beach,multi_stop,Design District|Victory,18,50,
+15,MIA Airport,Fontainebleau,multi_stop,Brickell|Prime 112,22,60,airport pickup
+16,Aventura Mall,Prime 112,multi_stop,Bal Harbour Shops|Playa Miami,17,50,
+17,Tootsie's,Booby Trap on the River,multi_stop,Taboo,24,55,
+18,Miami International Airport,Brickell,airport_pickup,,9,20,
+19,Miami International Airport,Design District,airport_pickup,,8,20,
+20,Miami International Airport,Fontainebleau Miami Beach,airport_pickup,,12,27.5,
+21,Miami International Airport,South Beach,airport_pickup,,13.5,27.5,
+22,Fort Lauderdale Airport (FLL),Brickell,airport_pickup,,29,45,outer
+23,Victory Restaurant,Miami International Airport,airport_dropoff,,8,20,
+24,Brickell City Centre,Miami International Airport,airport_dropoff,,9,20,
+25,Fontainebleau,Miami International Airport,airport_dropoff,,12,27.5,
+26,Bal Harbour Shops,Miami International Airport,airport_dropoff,,17.5,37.5,
+27,South Beach,Fort Lauderdale,outbound,,32.5,50,
+28,Miami Beach,Homestead,outbound,,45,65,
+29,Brickell,Boca Raton,outbound,,47.5,62.5,
+30,Miami,West Palm Beach,outbound,,72.5,87.5,
+31,Davie,Miami,inbound,,23,37.5,outer
+32,Fort Lauderdale,South Beach,inbound,,32.5,50,outer
+33,Homestead,Downtown Miami,inbound,,37.5,55,outer
+34,Boca Raton,Brickell,inbound,,47.5,62.5,outer
+35,West Palm Beach,Miami,inbound,,72.5,87.5,outer
