@@ -380,14 +380,26 @@ def read_suggestions(page: Page, query: str) -> list[Suggestion]:
     return suggestions
 
 
-def place_json_from_url(page: Page, role: str) -> str | None:
+def url_param_for_role(role: str, stop_index: int = 0, total_stops: int = 0) -> str:
+    if role == "pickup":
+        return "pickup"
+    elif role == "stop":
+        return f"drop[{stop_index}]"
+    elif role == "destination":
+        return f"drop[{total_stops}]" if total_stops > 0 else "drop[0]"
+    return URL_PARAM.get(role, "drop[0]")
+
+
+def place_json_from_url(page: Page, role: str = "pickup", stop_index: int = 0, total_stops: int = 0) -> str | None:
     """The raw JSON Uber stores in the URL for the selected place (exactly as Uber produced it)."""
-    raw = parse_qs(urlparse(page.url).query).get(URL_PARAM[role])
+    param = url_param_for_role(role, stop_index, total_stops)
+    raw = parse_qs(urlparse(page.url).query).get(param)
     return raw[0] if raw else None
 
 
-def selected_location_from_url(page: Page, role: str) -> SelectedLocation | None:
-    raw = parse_qs(urlparse(page.url).query).get(URL_PARAM[role])
+def selected_location_from_url(page: Page, role: str = "pickup", stop_index: int = 0, total_stops: int = 0) -> SelectedLocation | None:
+    param = url_param_for_role(role, stop_index, total_stops)
+    raw = parse_qs(urlparse(page.url).query).get(param)
     if not raw:
         return None
     try:
@@ -525,15 +537,33 @@ def select_route(page: Page, pickup_query: LocationSpec | str,
     return pickup, destination
 
 
-def verify_route_in_url(page: Page, pickup: SelectedLocation, destination: SelectedLocation) -> None:
-    """Uber keeps the selected places in the URL; make sure both are still exactly the ones we verified."""
-    for role, expected in (("pickup", pickup), ("destination", destination)):
-        current = selected_location_from_url(page, role)
-        if current is None or current.place_id != expected.place_id:
-            shot = save_screenshot(page, f"{role}-changed")
-            found = current.name if current else "nothing"
+def verify_route_in_url(page: Page, pickup: SelectedLocation, destination: SelectedLocation,
+                        stops: list[SelectedLocation] | None = None) -> None:
+    """Uber keeps the selected places in the URL; make sure pickup, stops, and destination are still exactly the ones we verified."""
+    stops = stops or []
+    total_stops = len(stops)
+
+    current_pickup = selected_location_from_url(page, "pickup")
+    if current_pickup is None or current_pickup.place_id != pickup.place_id:
+        shot = save_screenshot(page, "pickup-changed")
+        found = current_pickup.name if current_pickup else "nothing"
+        raise WrongLocationSelectedError(
+            f"Uber's pickup is now {found!r}, expected {pickup.name!r} ({pickup.place_id}). Screenshot: {shot}")
+
+    for idx, stop_loc in enumerate(stops):
+        current_stop = selected_location_from_url(page, "stop", stop_index=idx, total_stops=total_stops)
+        if current_stop is None or current_stop.place_id != stop_loc.place_id:
+            shot = save_screenshot(page, f"stop-{idx+1}-changed")
+            found = current_stop.name if current_stop else "nothing"
             raise WrongLocationSelectedError(
-                f"Uber's {role} is now {found!r}, expected {expected.name!r} ({expected.place_id}). Screenshot: {shot}")
+                f"Uber's stop {idx+1} is now {found!r}, expected {stop_loc.name!r} ({stop_loc.place_id}). Screenshot: {shot}")
+
+    current_dest = selected_location_from_url(page, "destination", total_stops=total_stops)
+    if current_dest is None or current_dest.place_id != destination.place_id:
+        shot = save_screenshot(page, "destination-changed")
+        found = current_dest.name if current_dest else "nothing"
+        raise WrongLocationSelectedError(
+            f"Uber's destination is now {found!r}, expected {destination.name!r} ({destination.place_id}). Screenshot: {shot}")
 
 
 # --- Search -> ride options ---------------------------------------------------------------------
@@ -591,7 +621,7 @@ def page_summary(page: Page) -> str:
 
 def search_rides(page: Page, pickup: SelectedLocation, destination: SelectedLocation,
                  screenshot_before: bool = True, human_delays: bool = True,
-                 delay_scale: float = 1.0) -> int:
+                 delay_scale: float = 1.0, stops: list[SelectedLocation] | None = None) -> int:
     """Click Search and wait until Uber actually shows priced ride options. Returns the number of priced rows."""
     button = find_search_button(page)
     if screenshot_before:
@@ -599,10 +629,11 @@ def search_rides(page: Page, pickup: SelectedLocation, destination: SelectedLoca
         print(f"\n[info] Clicking 'Search' (screenshot before: {before})")
     human_pause(0.8, 1.8, scale=delay_scale, enabled=human_delays)
     safe_click(button, "the Search button")
-    return wait_for_ride_options(page, pickup, destination)
+    return wait_for_ride_options(page, pickup, destination, stops=stops)
 
 
-def wait_for_ride_options(page: Page, pickup: SelectedLocation, destination: SelectedLocation) -> int:
+def wait_for_ride_options(page: Page, pickup: SelectedLocation, destination: SelectedLocation,
+                           stops: list[SelectedLocation] | None = None) -> int:
     """Wait until /go/product-selection shows ride rows with prices, for exactly this route."""
     try:
         page.wait_for_url("**/go/product-selection**", timeout=RESULTS_TIMEOUT_MS, wait_until="commit")
@@ -619,7 +650,7 @@ def wait_for_ride_options(page: Page, pickup: SelectedLocation, destination: Sel
         raise RideOptionsNotLoadedError(
             f"Ride options page opened but no stable list of priced rides appeared.\n"
             f"  {page_summary(page)}\n  Screenshot: {shot}")
-    verify_route_in_url(page, pickup, destination)
+    verify_route_in_url(page, pickup, destination, stops=stops)
     return count
 
 
@@ -778,19 +809,27 @@ def amount_of(price: str | None) -> float | None:
 
 
 def route_result(pickup: SelectedLocation, destination: SelectedLocation, rides: list[RideOption],
-                 fetched_at: datetime) -> dict:
-    return {
+                 fetched_at: datetime, stops: list[SelectedLocation] | None = None,
+                 stops_labels: list[str] | None = None, route_id: int | None = None) -> dict:
+    stops_locs = stops or []
+    stops_names = stops_labels if stops_labels is not None else [s.name for s in stops_locs]
+    res = {
         "pickup": pickup.name,
+        "source": pickup.name,
+        "stops": stops_names,
         "destination": destination.name,
         "fetched_at": fetched_at.isoformat(timespec="seconds"),
         "currency": rides[0].currency,
         "rides": [{"ride_type": r.ride_type, "price": r.price, "original_price": r.original_price,
                    "price_value": amount_of(r.price), "original_price_value": amount_of(r.original_price)}
                   for r in rides],
-        # Exact places Uber used, so later consumers (e.g. the Laravel backend) can verify the route.
         "pickup_details": pickup.__dict__,
+        "stops_details": [s.__dict__ for s in stops_locs],
         "destination_details": destination.__dict__,
     }
+    if route_id is not None:
+        res["route_id"] = route_id
+    return res
 
 
 def save_result(pickup: SelectedLocation, destination: SelectedLocation, rides: list[RideOption],
@@ -955,23 +994,40 @@ def cmd_accounts(args: argparse.Namespace) -> int:
     if sub == "list" or sub is None:
         accounts = load_accounts()
         print(f"\n[ACCOUNTS] {len(accounts)} registered mobile account(s) in {ACCOUNTS_CSV.name}:")
-        print(f"{'Account Name':<14} {'Phone Number':<16} {'Status':<10} {'Profile Dir':<26} {'User-Agent Platform/Version':<32} {'Notes'}")
+        print(f"{'Account Name':<14} {'Phone Number':<16} {'Status':<10} {'Last Used':<22} {'Profile Dir':<28} {'Notes'}")
         print("-" * 115)
         for a in accounts:
-            ua = a.get("user_agent", "")
-            ua_summary = "default"
-            if "macintosh" in ua.lower():
-                ua_summary = "macOS Chrome"
-            elif "linux" in ua.lower():
-                ua_summary = "Linux Chrome"
-            elif "windows" in ua.lower():
-                ua_summary = "Windows Chrome"
-            print(f"{a.get('account_name', ''):<14} {a.get('phone_number', ''):<16} {a.get('status', ''):<10} {a.get('profile_dir', ''):<26} {ua_summary:<32} {a.get('notes', '')}")
+            last_used = a.get("last_used") or "never"
+            print(f"{a.get('account_name', ''):<14} {a.get('phone_number', ''):<16} {a.get('status', ''):<10} {last_used:<22} {a.get('profile_dir', ''):<28} {a.get('notes', '')}")
         print()
         print("Usage tips:")
         print("  Log in an account:  python uber_prices.py open --account Account_1")
         print("  Check session:      python uber_prices.py check-session --account Account_1")
+        print("  Cross-check status: python uber_prices.py accounts check")
         print("  Run batch:          python uber_prices.py batch --account Account_1 --rotate-accounts")
+        return 0
+    elif sub == "check":
+        accounts = load_accounts()
+        print(f"\n[ACCOUNT SESSION CROSS-CHECK] Verifying {len(accounts)} account(s):\n")
+        for a in accounts:
+            acc_name = a.get("account_name", "")
+            prof_dir_name = a.get("profile_dir") or f"browser_profile_{acc_name}"
+            prof_path = BASE_DIR / prof_dir_name
+            if not prof_path.exists():
+                print(f"  {acc_name:<12} → {prof_dir_name:<28} → Profile directory missing")
+                continue
+            has_cookies = False
+            try:
+                cookies_db = prof_path / "Default" / "Network" / "Cookies"
+                if not cookies_db.exists():
+                    cookies_db = prof_path / "Cookies"
+                if cookies_db.exists() and cookies_db.stat().st_size > 0:
+                    has_cookies = True
+            except Exception:
+                pass
+            status_str = "Session profile present (cookies DB exists)" if has_cookies else "Profile directory exists (no session recorded)"
+            print(f"  {acc_name:<12} → {prof_dir_name:<28} → {status_str}")
+        print()
         return 0
     elif sub == "add":
         name, phone = args.name, args.phone
@@ -1043,9 +1099,20 @@ def cmd_open(args: argparse.Namespace) -> int:
 
 # Read-only: values are only read, never set.
 BROWSER_INFO_JS = """
-() => ({userAgent: navigator.userAgent, platform: navigator.platform, language: navigator.language,
-        languages: navigator.languages, webdriver: navigator.webdriver,
-        innerSize: [window.innerWidth, window.innerHeight]})
+() => ({
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    languages: Array.from(navigator.languages || []),
+    webdriver: navigator.webdriver,
+    devicePixelRatio: window.devicePixelRatio,
+    innerSize: [window.innerWidth, window.innerHeight],
+    userAgentData: navigator.userAgentData ? {
+        brands: navigator.userAgentData.brands,
+        mobile: navigator.userAgentData.mobile,
+        platform: navigator.userAgentData.platform
+    } : null
+})
 """
 
 
@@ -1070,19 +1137,29 @@ def cmd_browser_info(args: argparse.Namespace) -> int:
         # Only a yes/no: no cookie names, values or counts are printed.
         has_session = any("uber.com" in c["domain"] for c in worker.context.cookies())
         viewport = page.viewport_size
+        account_name = getattr(args, "account", None) or "(default profile)"
+        configured_ua = cfg.user_agent or "None (default Chrome User-Agent)"
+        runtime_ua = info["userAgent"]
+
+        ua_hints = info.get("userAgentData")
+        ua_hints_str = json.dumps(ua_hints) if ua_hints else "Not available / Not supported"
+
         rows = [
-            ("Browser type", f"{worker.engine_used}" + (" (installed Google Chrome)" if worker.engine_used == "chrome" else "")),
-            ("Executable path", worker.browser_executable()),
+            ("Account", account_name),
+            ("Profile directory", f"{cfg.profile_dir}"),
+            ("Browser", f"{worker.engine_used}" + (" (installed Google Chrome)" if worker.engine_used == "chrome" else "")),
             ("Browser version", version),
             ("Playwright version", worker.playwright_version()),
-            ("navigator.userAgent", info["userAgent"]),
-            ("navigator.platform", info["platform"]),
-            ("navigator.language", info["language"]),
-            ("navigator.languages", info["languages"]),
-            ("navigator.webdriver", info["webdriver"]),
+            ("Configured User-Agent", configured_ua),
+            ("Runtime User-Agent", runtime_ua),
+            ("Platform", info["platform"]),
+            ("Language", info["language"]),
+            ("Languages", ", ".join(info["languages"]) if isinstance(info["languages"], list) else str(info["languages"])),
             ("Viewport", f"{viewport['width']}x{viewport['height']}" if viewport
              else f"window size {info['innerSize'][0]}x{info['innerSize'][1]}"),
-            ("Persistent profile", f"yes: {cfg.profile_dir}"),
+            ("Device Pixel Ratio", info.get("devicePixelRatio")),
+            ("navigator.webdriver", info["webdriver"]),
+            ("User-Agent Client Hints", ua_hints_str),
             ("Saved Uber session in profile", "yes" if has_session else "no"),
         ]
         print("[browser-info] read-only diagnostic; no Uber page was opened\n")
@@ -1269,12 +1346,20 @@ def resolve_place(page: Page, spec: LocationSpec, region: dict | None, role: str
 
 
 def open_route(page: Page, pickup: SelectedLocation, pickup_raw: str,
-               destination: SelectedLocation, destination_raw: str) -> None:
+               destination: SelectedLocation, destination_raw: str,
+               stops: list[tuple[SelectedLocation, str]] | None = None) -> None:
     """
-    Open Uber's route form with both verified places -- the same /go/drop?pickup=..&drop[0]=.. URL Uber itself
-    produces when both are chosen in the form -- then check Uber accepted exactly those places.
+    Open Uber's route form with all verified places (pickup, stops, destination) via query parameters,
+    then verify Uber accepted exactly those places.
     """
-    page.goto(f"{UBER_ROUTE_URL}?{urlencode({'pickup': pickup_raw, 'drop[0]': destination_raw})}",
+    stops = stops or []
+    total_stops = len(stops)
+    params = {"pickup": pickup_raw}
+    for idx, (_, stop_raw) in enumerate(stops):
+        params[f"drop[{idx}]"] = stop_raw
+    params[f"drop[{total_stops}]"] = destination_raw
+
+    page.goto(f"{UBER_ROUTE_URL}?{urlencode(params)}",
               wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
     host = urlparse(page.url).netloc
     if host.startswith("auth.") or "/login" in page.url:
@@ -1286,22 +1371,51 @@ def open_route(page: Page, pickup: SelectedLocation, pickup_raw: str,
             page.get_by_role("heading", name="Choose a ride")).first.wait_for(state="visible", timeout=20_000)
     except PlaywrightError:
         raise ExtractorError(f"Route page did not load (url: {urlparse(page.url).path}).")
-    verify_route_in_url(page, pickup, destination)
-    # The form must also *display* both chosen places (not just carry them in the URL).
-    for role, loc in (("pickup", pickup), ("destination", destination)):
-        container = page.locator('[data-testid="pudo-select-v2"]').filter(
-            has=page.locator(f'[data-testid="{FIELD_ICON_TESTID[role]}"]'))
-        # Compare punctuation-insensitively: the form shows "Victory Restaurant & Lounge" while Uber's stored
-        # name is "Victory Restaurant  Lounge". Same 10s allowance as before for the form to render.
+
+    stops_locs = [s_loc for s_loc, _ in stops]
+    verify_route_in_url(page, pickup, destination, stops=stops_locs)
+
+    # If the route form is displayed, verify that pickup, stops, and destination are correctly shown in the form inputs.
+    if page.locator('button[aria-label="Search"]').is_visible():
+        pickup_container = page.locator('[data-testid="pudo-select-v2"]').filter(
+            has=page.locator(f'[data-testid="{FIELD_ICON_TESTID["pickup"]}"]')).first
+        drop_containers = page.locator('[data-testid="pudo-select-v2"]').filter(
+            has=page.locator(f'[data-testid="{FIELD_ICON_TESTID["destination"]}"]'))
+
+        # 1. Verify pickup text
         deadline = time.perf_counter() + 10
-        shown = ""
         while True:
-            shown = container.first.inner_text().strip() if container.count() else ""
-            if normalize(loc.name) in normalize(shown):
+            shown = pickup_container.inner_text().strip() if pickup_container.count() else ""
+            if normalize(pickup.name) in normalize(shown):
                 break
             if time.perf_counter() > deadline:
                 raise WrongLocationSelectedError(
-                    f"Route form shows {shown or 'nothing'!r} as {role}, expected {loc.name!r}.")
+                    f"Route form shows {shown or 'nothing'!r} as pickup, expected {pickup.name!r}.")
+            page.wait_for_timeout(250)
+
+        # 2. Verify intermediate stops text
+        for idx, (stop_loc, _) in enumerate(stops):
+            stop_container = drop_containers.nth(idx)
+            deadline = time.perf_counter() + 10
+            while True:
+                shown = stop_container.inner_text().strip() if stop_container.count() else ""
+                if normalize(stop_loc.name) in normalize(shown):
+                    break
+                if time.perf_counter() > deadline:
+                    raise WrongLocationSelectedError(
+                        f"Route form shows {shown or 'nothing'!r} as stop {idx+1}, expected {stop_loc.name!r}.")
+                page.wait_for_timeout(250)
+
+        # 3. Verify destination text (the last drop container)
+        dest_container = drop_containers.nth(total_stops) if drop_containers.count() > total_stops else drop_containers.last
+        deadline = time.perf_counter() + 10
+        while True:
+            shown = dest_container.inner_text().strip() if dest_container.count() else ""
+            if normalize(destination.name) in normalize(shown):
+                break
+            if time.perf_counter() > deadline:
+                raise WrongLocationSelectedError(
+                    f"Route form shows {shown or 'nothing'!r} as destination, expected {destination.name!r}.")
             page.wait_for_timeout(250)
 
 
@@ -1377,51 +1491,65 @@ class PhaseTimer:
 
 def run_route(page: Page, route: dict, locations: dict, region: dict | None,
               human_delays: bool = True, delay_scale: float = 1.0) -> dict:
-    """Process one pickup -> destination route in the already-open page. Never raises; returns a record."""
+    """Process one pickup -> destination (or multi-stop) route in the already-open page. Never raises; returns a record."""
     rec = {
         "id": route["id"], "category": route.get("category"),
-        "pickup_label": route["pickup"], "destination_label": route["destination"],
+        "pickup_label": route["pickup"],
+        "stops_labels": route.get("stops", []),
+        "destination_label": route["destination"],
         "status": None, "reason": None, "failed_phase": None,
         "started_at": datetime.now().isoformat(timespec="seconds"), "ended_at": None,
         "timings": {}, "location_breakdown": {}, "prices_count": 0, "result": None, "screenshot": None,
     }
-    if route.get("stops"):
-        rec.update(status=SKIPPED_MULTI_STOP, reason="Multi-stop routes are not implemented yet.",
-                   ended_at=rec["started_at"])
-        return rec
-    missing = [label for label in (route["pickup"], route["destination"]) if label not in locations]
+    stops_labels = route.get("stops", [])
+    all_required_labels = [route["pickup"]] + stops_labels + [route["destination"]]
+    missing = [label for label in all_required_labels if label not in locations]
     if missing:
         rec.update(status=CONFIG_ERROR, reason=f"No location mapping in routes.json for {missing}",
                    ended_at=rec["started_at"])
         return rec
 
-    pickup_spec = LocationSpec.from_config({**locations[route["pickup"]], "label": route["pickup"]})
-    dest_spec = LocationSpec.from_config({**locations[route["destination"]], "label": route["destination"]})
     timer = PhaseTimer()
     start = time.perf_counter()
     phase = "location_selection"
     try:
         with timer.phase("location_selection"):
+            pickup_spec = LocationSpec.from_config({**locations[route["pickup"]], "label": route["pickup"]})
             pickup, pickup_raw = resolve_place(page, pickup_spec, region, "pickup",
                                                rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
+
+            resolved_stops = []
+            for i, stop_label in enumerate(stops_labels, 1):
+                stop_spec = LocationSpec.from_config({**locations[stop_label], "label": stop_label})
+                stop_loc, stop_raw = resolve_place(page, stop_spec, region, f"stop_{i}",
+                                                   rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
+                resolved_stops.append((stop_loc, stop_raw))
+
+            dest_spec = LocationSpec.from_config({**locations[route["destination"]], "label": route["destination"]})
             destination, destination_raw = resolve_place(page, dest_spec, region, "destination",
                                                          rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
+
         phase = "route_form"
         with timer.phase("route_form"):
-            open_route(page, pickup, pickup_raw, destination, destination_raw)
+            open_route(page, pickup, pickup_raw, destination, destination_raw, stops=resolved_stops)
+
         phase = "search_navigation"
         with timer.phase("search_navigation"):
+            stops_locs = [s_loc for s_loc, _ in resolved_stops]
             if "/go/product-selection" in page.url:
-                priced_rows = wait_for_ride_options(page, pickup, destination)  # Uber skipped the form
+                priced_rows = wait_for_ride_options(page, pickup, destination, stops=stops_locs)
             else:
                 priced_rows = search_rides(page, pickup, destination, screenshot_before=False,
-                                           human_delays=human_delays, delay_scale=delay_scale)
+                                           human_delays=human_delays, delay_scale=delay_scale, stops=stops_locs)
+
         phase = "price_extraction"
         with timer.phase("price_extraction"):
             fetched_at = datetime.now()
             rides, priced_rows = extract_rides_stable(page)
             validate_rides(rides, priced_rows)
-        rec["result"] = route_result(pickup, destination, rides, fetched_at)
+
+        rec["result"] = route_result(pickup, destination, rides, fetched_at,
+                                     stops=stops_locs, stops_labels=stops_labels, route_id=route["id"])
         rec["prices_count"] = len(rides)
         rec["status"] = SUCCESS
     except (ExtractorError, PlaywrightError) as exc:
@@ -1436,7 +1564,11 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None,
 
 
 def print_route_record(rec: dict, n: int, total: int) -> None:
-    arrow = f"{rec['pickup_label']} → {rec['destination_label']}"
+    stops = rec.get("stops_labels") or []
+    if stops:
+        arrow = f"{rec['pickup_label']} → " + " → ".join(stops) + f" → {rec['destination_label']}"
+    else:
+        arrow = f"{rec['pickup_label']} → {rec['destination_label']}"
     print(f"\n[ROUTE {n:02d}/{total}] #{rec['id']} {arrow}")
     t = rec["timings"]
     for key, label in (("location_selection", "Location selection"), ("route_form", "Route form"),
@@ -1451,6 +1583,9 @@ def print_route_record(rec: dict, n: int, total: int) -> None:
     if rec["status"] == SUCCESS:
         res = rec["result"]
         print(f"  Selected: {res['pickup']} ({res['pickup_details']['address']})")
+        if res.get("stops_details"):
+            for s_idx, s_det in enumerate(res["stops_details"], 1):
+                print(f"        -> Stop {s_idx}: {s_det['name']} ({s_det['address']})")
         print(f"        ->  {res['destination']} ({res['destination_details']['address']})")
         print(f"  Prices: {rec['prices_count']}  " +
               ", ".join(f"{r['ride_type']} {r['price']}" for r in res["rides"]))
@@ -1521,16 +1656,18 @@ def write_batch_files(batch_id: str, meta: dict, records: list[dict], summary: d
     results = {
         **meta,
         "routes": [
-            {"id": r["id"], "category": r["category"], "pickup_label": r["pickup_label"],
-             "destination_label": r["destination_label"], "status": r["status"], "reason": r["reason"],
-             **(r["result"] or {"pickup": None, "destination": None, "fetched_at": None, "currency": None, "rides": []})}
+            {"id": r["id"], "category": r["category"],
+             "source": r["pickup_label"], "stops": r.get("stops_labels", []), "destination": r["destination_label"],
+             "pickup_label": r["pickup_label"], "destination_label": r["destination_label"],
+             "status": r["status"], "reason": r["reason"],
+             **(r["result"] or {"pickup": None, "source": None, "stops": r.get("stops_labels", []), "destination": None, "fetched_at": None, "currency": None, "rides": []})}
             for r in records
         ],
     }
     perf = {
         **meta,
         "summary": summary,
-        "routes": [{k: r.get(k) for k in ("id", "category", "pickup_label", "destination_label", "status",
+        "routes": [{k: r.get(k) for k in ("id", "category", "pickup_label", "stops_labels", "destination_label", "status",
                                           "failed_phase", "started_at", "ended_at", "timings",
                                           "location_breakdown", "prices_count",
                                           "resources", "screenshot")} for r in records],
@@ -1545,7 +1682,7 @@ def write_batch_files(batch_id: str, meta: dict, records: list[dict], summary: d
 ROUTES_CSV = BASE_DIR / "data" / "routes.csv"
 RESULTS_CSV = BASE_DIR / "data" / "results.csv"
 RESULTS_CSV_FIELDS = [
-    "run_id", "timestamp", "route_id", "source", "destination", "status", "reason",
+    "run_id", "timestamp", "route_id", "source", "stops", "destination", "status", "reason",
     "ride_name", "current_price", "original_price", "currency", "price_value", "original_price_value",
     "pickup_place_id", "destination_place_id",
 ]
@@ -1578,8 +1715,6 @@ def load_routes_csv(path: Path) -> list[dict]:
             seen.add(int(route_id))
             route = {"id": int(route_id), "pickup": source, "destination": destination,
                      "category": (row.get("category") or "").strip() or None}
-            # Intermediate stops ("A|B"). A route with stops is never priced as a direct trip:
-            # run_route() marks it SKIPPED_MULTI_STOP until multi-stop support exists.
             stops = [s.strip() for s in (row.get("stops") or "").split("|") if s.strip()]
             if stops:
                 route["stops"] = stops
@@ -1589,8 +1724,9 @@ def load_routes_csv(path: Path) -> list[dict]:
 
 def result_csv_rows(batch_id: str, rec: dict) -> list[dict]:
     """One row per extracted ride for a successful route; one status row for any other outcome."""
+    stops_str = "|".join(rec.get("stops_labels") or [])
     base = {"run_id": batch_id, "route_id": rec["id"], "source": rec["pickup_label"],
-            "destination": rec["destination_label"], "status": rec["status"],
+            "stops": stops_str, "destination": rec["destination_label"], "status": rec["status"],
             "reason": (rec.get("reason") or "").splitlines()[0] if rec.get("reason") else ""}
     res = rec.get("result")
     if rec["status"] == SUCCESS and res:
@@ -1609,7 +1745,7 @@ def append_results_csv(path: Path, batch_id: str, recs: list[dict]) -> int:
     """
     Append rows for finished routes (history is never overwritten). Each call writes complete rows in one
     write and fsyncs, so an interrupted run leaves every earlier route's rows intact. Handles file lock retries
-    if Excel has the CSV open.
+    if Excel has the CSV open. Auto-migrates old headers to include the 'stops' column if needed.
     """
     rows = [row for rec in recs for row in result_csv_rows(batch_id, rec)]
     if not rows:
@@ -1623,13 +1759,28 @@ def append_results_csv(path: Path, batch_id: str, recs: list[dict]) -> int:
                 with path.open(newline="", encoding="utf-8-sig") as f:
                     header = next(csv.reader(f), [])
                 if header != RESULTS_CSV_FIELDS:
-                    raise ExtractorError(f"{path} has different columns {header}; not appending to avoid mixing formats.")
+                    OLD_FIELDS = [
+                        "run_id", "timestamp", "route_id", "source", "destination", "status", "reason",
+                        "ride_name", "current_price", "original_price", "currency", "price_value", "original_price_value",
+                        "pickup_place_id", "destination_place_id",
+                    ]
+                    if header == OLD_FIELDS:
+                        with path.open(newline="", encoding="utf-8-sig") as f:
+                            r = csv.DictReader(f)
+                            old_rows = list(r)
+                        with path.open("w", newline="", encoding="utf-8-sig") as f:
+                            w = csv.DictWriter(f, fieldnames=RESULTS_CSV_FIELDS, lineterminator="\n")
+                            w.writeheader()
+                            for old_row in old_rows:
+                                old_row["stops"] = ""
+                                w.writerow({k: old_row.get(k, "") for k in RESULTS_CSV_FIELDS})
+                    else:
+                        raise ExtractorError(f"{path} has different columns {header}; not appending to avoid mixing formats.")
             buffer = io.StringIO()
             writer = csv.DictWriter(buffer, fieldnames=RESULTS_CSV_FIELDS, lineterminator="\n")
             if is_new:
                 writer.writeheader()
             writer.writerows(rows)
-            # utf-8-sig: a BOM only when the file is created, so Excel shows ₹/$ correctly; appends add no BOM.
             with path.open("a", newline="", encoding="utf-8-sig") as f:
                 f.write(buffer.getvalue())
                 f.flush()
@@ -1637,10 +1788,8 @@ def append_results_csv(path: Path, batch_id: str, recs: list[dict]) -> int:
             return len(rows)
         except PermissionError:
             if attempt < 3:
-                print(f"[warn] {path.name} is currently open in Excel or another editor. Retrying append in 2s... (Please close Excel)")
                 time.sleep(2)
             else:
-                print(f"[warn] Could not write to {path.name} because it is locked by Excel. (JSON results are still saved in data/results/!)")
                 return 0
     return 0
 
@@ -1672,9 +1821,9 @@ def cmd_batch(args: argparse.Namespace) -> int:
 
     print(f"[INPUT]  {input_path} ({len(routes)} route(s) selected)")
     print(f"[OUTPUT] {output_path} (append)")
-    runnable = sum(1 for r in routes if not r.get("stops"))
-    print(f"[BATCH] {batch_id}: {len(routes)} routes ({runnable} pickup→destination, "
-          f"{len(routes) - runnable} multi-stop will be skipped)")
+    multi_stop_count = sum(1 for r in routes if r.get("stops"))
+    print(f"[BATCH] {batch_id}: {len(routes)} routes ({len(routes) - multi_stop_count} simple, "
+          f"{multi_stop_count} multi-stop)")
 
     exit_code = 0
     t = time.perf_counter()
@@ -1819,9 +1968,10 @@ def build_parser() -> argparse.ArgumentParser:
     command("check-session", "Verify the saved browser profile is still logged in.")
     command("browser-info", "Read-only: show the browser environment the worker uses (no Uber action).")
 
-    acc_parser = command("accounts", "Manage registered mobile number accounts (list, add, setup).")
+    acc_parser = command("accounts", "Manage registered mobile number accounts (list, check, add, setup).")
     acc_sub = acc_parser.add_subparsers(dest="account_subcommand")
     acc_sub.add_parser("list", help="List registered mobile accounts and their profile status.")
+    acc_sub.add_parser("check", help="Diagnostic check of registered accounts and profiles.")
     
     add_acc = acc_sub.add_parser("add", help="Register a new mobile account.")
     add_acc.add_argument("--name", required=True, help="Short identifier (e.g. Account_1).")
