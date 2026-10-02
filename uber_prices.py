@@ -55,6 +55,7 @@ import csv
 import io
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -63,6 +64,114 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
+
+# --- Accounts & Human Behavior Configuration ---------------------------------------------------
+ACCOUNTS_CSV = BASE_DIR / "data" / "accounts.csv" if "BASE_DIR" in locals() else Path(__file__).resolve().parent / "data" / "accounts.csv"
+
+REALISTIC_USER_AGENTS = [
+    # Windows Chrome 131 & 130
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    # macOS Chrome 131 & 130
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    # Linux Chrome 131 & 130
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+]
+
+DEFAULT_ACCOUNTS = [
+    {"account_name": "Account_1", "phone_number": "+10000000001", "profile_dir": "browser_profile_account1", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[0], "notes": "Primary account (Win Chrome 131)"},
+    {"account_name": "Account_2", "phone_number": "+10000000002", "profile_dir": "browser_profile_account2", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[2], "notes": "Secondary account (Mac Chrome 131)"},
+    {"account_name": "Account_3", "phone_number": "+10000000003", "profile_dir": "browser_profile_account3", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[4], "notes": "Backup account 1 (Linux Chrome 131)"},
+    {"account_name": "Account_4", "phone_number": "+10000000004", "profile_dir": "browser_profile_account4", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[1], "notes": "Backup account 2 (Win Chrome 130)"},
+]
+
+
+def human_pause(min_sec: float = 0.5, max_sec: float = 1.5, scale: float = 1.0, enabled: bool = True) -> float:
+    """Simulate human reaction time and pauses to avoid bot detection."""
+    if not enabled or scale <= 0:
+        return 0.0
+    duration = random.uniform(min_sec, max_sec) * scale
+    time.sleep(duration)
+    return duration
+
+
+def load_accounts(csv_path: Path | None = None) -> list[dict]:
+    path = csv_path or ACCOUNTS_CSV
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        save_accounts(DEFAULT_ACCOUNTS, path)
+        return [dict(a) for a in DEFAULT_ACCOUNTS]
+    with path.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        accounts = [row for row in reader if row.get("account_name")]
+    if not accounts:
+        save_accounts(DEFAULT_ACCOUNTS, path)
+        return [dict(a) for a in DEFAULT_ACCOUNTS]
+    
+    # Auto-assign realistic User-Agent to existing accounts if missing
+    updated = False
+    for acc in accounts:
+        if not acc.get("user_agent"):
+            acc["user_agent"] = random.choice(REALISTIC_USER_AGENTS)
+            updated = True
+    if updated:
+        save_accounts(accounts, path)
+
+    return accounts
+
+
+def save_accounts(accounts: list[dict], csv_path: Path | None = None) -> None:
+    path = csv_path or ACCOUNTS_CSV
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = ["account_name", "phone_number", "profile_dir", "status", "last_used", "user_agent", "notes"]
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for acc in accounts:
+            writer.writerow({k: acc.get(k, "") for k in fieldnames})
+
+
+def get_account(identifier: str, csv_path: Path | None = None) -> dict | None:
+    accounts = load_accounts(csv_path)
+    ident_clean = identifier.strip().lower()
+    for acc in accounts:
+        if acc.get("account_name", "").strip().lower() == ident_clean or acc.get("phone_number", "").strip().lower() == ident_clean:
+            return acc
+    return None
+
+
+def update_account_status(identifier: str, status: str, notes: str | None = None, csv_path: Path | None = None) -> dict | None:
+    accounts = load_accounts(csv_path)
+    target = None
+    ident_clean = identifier.strip().lower()
+    for acc in accounts:
+        if acc.get("account_name", "").strip().lower() == ident_clean or acc.get("phone_number", "").strip().lower() == ident_clean:
+            acc["status"] = status
+            acc["last_used"] = datetime.now().isoformat(timespec="seconds")
+            if notes is not None:
+                acc["notes"] = notes
+            target = acc
+            break
+    if target:
+        save_accounts(accounts, csv_path)
+    return target
+
+
+def get_next_active_account(current_account_name: str | None = None, csv_path: Path | None = None) -> dict | None:
+    accounts = load_accounts(csv_path)
+    active = [a for a in accounts if a.get("status") == "active"]
+    if not active:
+        return None
+    if not current_account_name:
+        return active[0]
+    names = [a.get("account_name") for a in active]
+    if current_account_name in names:
+        idx = names.index(current_account_name)
+        return active[(idx + 1) % len(active)]
+    return active[0]
+
 
 from playwright.sync_api import BrowserContext, Error as PlaywrightError, Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -279,7 +388,8 @@ def selected_location_from_url(page: Page, role: str) -> SelectedLocation | None
 
 
 def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bool = True,
-                    timings: dict | None = None) -> tuple[list[Suggestion], Suggestion, SelectedLocation]:
+                    timings: dict | None = None, human_delays: bool = True,
+                    delay_scale: float = 1.0) -> tuple[list[Suggestion], Suggestion, SelectedLocation]:
     """Type the name, list Uber's suggestions, click only the exact match, and verify Uber's selection."""
     if isinstance(spec, str):
         spec = LocationSpec.parse(spec)
@@ -300,10 +410,22 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
         raise ExtractorError(f"Could not find the {role} input on the page. Screenshot: {shot}")
     lap("field_ready")
 
+    # Slight human reaction pause before clicking input
+    human_pause(0.3, 0.7, scale=delay_scale, enabled=human_delays)
+
     def type_name() -> None:
         field.click()
+        human_pause(0.2, 0.4, scale=delay_scale, enabled=human_delays)
         field.fill("")
-        field.press_sequentially(spec.name, delay=60)
+        if human_delays and delay_scale > 0:
+            for char in spec.name:
+                field.press(char)
+                char_delay = random.uniform(0.06, 0.16) * delay_scale
+                if char in " ,.-":
+                    char_delay += random.uniform(0.1, 0.25) * delay_scale
+                time.sleep(char_delay)
+        else:
+            field.press_sequentially(spec.name, delay=60)
         lap("typing")
 
     # Retry typing ONCE, and only if the field actually lost the typed text (seen 2026-09-30: empty field
@@ -336,6 +458,9 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
         raise
     if verbose:
         print(f"  -> exact match: [{chosen.index}] {chosen}")
+
+    # Human pause to visually confirm match before clicking
+    human_pause(0.5, 1.2, scale=delay_scale, enabled=human_delays)
 
     before = page.url
     page.locator(SUGGESTION_SELECTOR).nth(chosen.index).click()
@@ -445,12 +570,14 @@ def page_summary(page: Page) -> str:
 
 
 def search_rides(page: Page, pickup: SelectedLocation, destination: SelectedLocation,
-                 screenshot_before: bool = True) -> int:
+                 screenshot_before: bool = True, human_delays: bool = True,
+                 delay_scale: float = 1.0) -> int:
     """Click Search and wait until Uber actually shows priced ride options. Returns the number of priced rows."""
     button = find_search_button(page)
     if screenshot_before:
         before = save_screenshot(page, "before-search")
         print(f"\n[info] Clicking 'Search' (screenshot before: {before})")
+    human_pause(0.8, 1.8, scale=delay_scale, enabled=human_delays)
     safe_click(button, "the Search button")
     return wait_for_ride_options(page, pickup, destination)
 
@@ -686,20 +813,42 @@ def print_selected(label: str, loc: SelectedLocation) -> None:
 
 def browser_config(args: argparse.Namespace) -> BrowserConfig:
     """Browser settings from the CLI. Defaults reproduce the previous behaviour exactly."""
-    engine = args.browser
+    engine = getattr(args, "browser", DEFAULT_ENGINE)
     if getattr(args, "chromium", False):  # legacy flag, same meaning as --browser chromium
         engine = "chromium"
-    profile = Path(args.profile_dir) if args.profile_dir else PROFILE_DIR
-    return BrowserConfig(profile_dir=profile, engine=engine, default_profile_dir=PROFILE_DIR)
+    
+    profile = None
+    user_agent = getattr(args, "user_agent", None)
+    account_arg = getattr(args, "account", None)
+    profile_dir_arg = getattr(args, "profile_dir", None)
+
+    if profile_dir_arg:
+        profile = Path(profile_dir_arg)
+    elif account_arg:
+        acc = get_account(account_arg)
+        if not acc:
+            available = ", ".join(a.get("account_name", "") for a in load_accounts())
+            raise ExtractorError(f"Account {account_arg!r} not found in data/accounts.csv. Available accounts: {available}")
+        prof_name = acc.get("profile_dir") or f"browser_profile_{acc['account_name']}"
+        profile = BASE_DIR / prof_name
+        if not user_agent:
+            user_agent = acc.get("user_agent")
+    else:
+        profile = PROFILE_DIR
+
+    return BrowserConfig(profile_dir=profile, engine=engine, default_profile_dir=PROFILE_DIR, user_agent=user_agent)
 
 
-def open_worker(args: argparse.Namespace) -> PlaywrightWorker:
+def open_worker(args: argparse.Namespace, create_profile: bool = False) -> PlaywrightWorker:
     """
     Browser worker described by the CLI options (visible browser, persistent profile), validated but not
     started: use it as `with open_worker(args) as worker:` (or call .start() / .close() explicitly).
     """
     try:
-        worker = PlaywrightWorker(browser_config(args))
+        cfg = browser_config(args)
+        if (create_profile or getattr(args, "account", None)) and not Path(cfg.profile_dir).exists():
+            Path(cfg.profile_dir).mkdir(parents=True, exist_ok=True)
+        worker = PlaywrightWorker(cfg)
         worker.check_profile()
     except ValueError as exc:
         raise ExtractorError(str(exc))
@@ -765,12 +914,69 @@ def cmd_check_session(args: argparse.Namespace) -> int:
         return 0
 
 
+def cmd_accounts(args: argparse.Namespace) -> int:
+    sub = getattr(args, "account_subcommand", "list")
+    if sub == "list" or sub is None:
+        accounts = load_accounts()
+        print(f"\n[ACCOUNTS] {len(accounts)} registered mobile account(s) in {ACCOUNTS_CSV.name}:")
+        print(f"{'Account Name':<14} {'Phone Number':<16} {'Status':<10} {'Profile Dir':<26} {'User-Agent Platform/Version':<32} {'Notes'}")
+        print("-" * 115)
+        for a in accounts:
+            ua = a.get("user_agent", "")
+            ua_summary = "default"
+            if "macintosh" in ua.lower():
+                ua_summary = "macOS Chrome"
+            elif "linux" in ua.lower():
+                ua_summary = "Linux Chrome"
+            elif "windows" in ua.lower():
+                ua_summary = "Windows Chrome"
+            print(f"{a.get('account_name', ''):<14} {a.get('phone_number', ''):<16} {a.get('status', ''):<10} {a.get('profile_dir', ''):<26} {ua_summary:<32} {a.get('notes', '')}")
+        print()
+        print("Usage tips:")
+        print("  Log in an account:  python uber_prices.py open --account Account_1")
+        print("  Check session:      python uber_prices.py check-session --account Account_1")
+        print("  Run batch:          python uber_prices.py batch --account Account_1 --rotate-accounts")
+        return 0
+    elif sub == "add":
+        name, phone = args.name, args.phone
+        prof = args.profile_dir or f"browser_profile_{name.lower().replace(' ', '_')}"
+        ua = args.user_agent or random.choice(REALISTIC_USER_AGENTS)
+        accounts = load_accounts()
+        if any(a.get("account_name", "").lower() == name.lower() for a in accounts):
+            print(f"[error] Account '{name}' already exists.")
+            return 1
+        new_acc = {"account_name": name, "phone_number": phone, "profile_dir": prof, "status": "active", "last_used": "", "user_agent": ua, "notes": args.notes or ""}
+        accounts.append(new_acc)
+        save_accounts(accounts)
+        print(f"[ok] Registered account '{name}' ({phone}) -> {prof}/ [User-Agent: {ua[:40]}...]")
+        return 0
+    elif sub == "setup":
+        acc_id = args.account or "Account_1"
+        args.account = acc_id
+        return cmd_open(args)
+    return 0
+
+
 def cmd_open(args: argparse.Namespace) -> int:
-    with open_worker(args) as worker:
+    account_arg = getattr(args, "account", None)
+    with open_worker(args, create_profile=True) as worker:
         page = worker.page
         page.set_default_timeout(NAV_TIMEOUT_MS)
+        print(f"[DEBUG] Launching browser with headless={worker.config.headless}...")
+        print(f"[DEBUG] Engine used: {worker.engine_used}")
+        print(f"[DEBUG] Executable path: {worker.browser_executable()}")
+        print(f"[DEBUG] Browser Process ID (PID): {worker.browser_pid()}")
+        print(f"[DEBUG] Profile directory: {worker.config.profile_dir}")
+        print(f"[DEBUG] User-Agent: {worker.config.user_agent or 'Default'}")
         try:
             page.goto(UBER_HOME_URL, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+            try:
+                page.bring_to_front()
+                if worker.context and worker.context.pages:
+                    worker.context.pages[0].bring_to_front()
+            except PlaywrightError:
+                pass
+            time.sleep(3)
         except PlaywrightError as exc:
             shot = save_screenshot(page, "open-failed")
             print(f"[error] Could not load {UBER_HOME_URL}: {exc.message.splitlines()[0]}")
@@ -782,12 +988,19 @@ def cmd_open(args: argparse.Namespace) -> int:
         print(f"     Page title: {page.title()!r}")
         print(f"     Profile dir: {worker.config.profile_dir}")
         print()
-        print("If you are not logged in, log in MANUALLY in the browser window now")
-        print("(password, OTP/MFA and any CAPTCHA are entered by you, not the script).")
+        print("========================================")
+        print("BROWSER SHOULD BE VISIBLE NOW ON YOUR SCREEN")
+        print("Look for a Chrome window titled Uber")
+        print("If you still don't see it, check Taskbar or other monitors")
+        print("========================================")
+        print()
         try:
-            input("When you are done, press Enter here to close the browser and save the session... ")
+            input(">>> Browser should now be visible. Please log in with +916353487984 and press Enter here when done.\n")
         except (EOFError, KeyboardInterrupt):
             pass
+
+    if account_arg:
+        update_account_status(account_arg, "active", notes="Logged in via `open` command")
     print(f"[ok] Browser closed. Session saved in {worker.config.profile_dir.name}/.")
     return 0
 
@@ -999,7 +1212,8 @@ UBER_ROUTE_URL = "https://m.uber.com/go/drop"
 
 
 def resolve_place(page: Page, spec: LocationSpec, region: dict | None, role: str,
-                  timings: dict | None = None) -> tuple[SelectedLocation, str]:
+                  timings: dict | None = None, human_delays: bool = True,
+                  delay_scale: float = 1.0) -> tuple[SelectedLocation, str]:
     """
     Select `spec` via the pickup field of a FRESH /go/home page and return the verified place plus Uber's own
     JSON for it. Measured 2026-09-30: only a fresh /go/home offers cities/neighbourhoods ("Miami -- FL, USA");
@@ -1009,7 +1223,8 @@ def resolve_place(page: Page, spec: LocationSpec, region: dict | None, role: str
     t = time.perf_counter()
     open_booking_page(page)
     timings["page_load"] = round(timings.get("page_load", 0) + time.perf_counter() - t, 2)
-    _, _, loc = select_location(page, "pickup", spec, verbose=False, timings=timings)
+    _, _, loc = select_location(page, "pickup", spec, verbose=False, timings=timings,
+                                human_delays=human_delays, delay_scale=delay_scale)
     check_region(loc, region, role)
     raw = place_json_from_url(page, "pickup")
     if not raw:
@@ -1124,7 +1339,8 @@ class PhaseTimer:
             self.timings[name] = round(time.perf_counter() - start, 2)
 
 
-def run_route(page: Page, route: dict, locations: dict, region: dict | None) -> dict:
+def run_route(page: Page, route: dict, locations: dict, region: dict | None,
+              human_delays: bool = True, delay_scale: float = 1.0) -> dict:
     """Process one pickup -> destination route in the already-open page. Never raises; returns a record."""
     rec = {
         "id": route["id"], "category": route.get("category"),
@@ -1150,9 +1366,10 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None) -> 
     phase = "location_selection"
     try:
         with timer.phase("location_selection"):
-            pickup, pickup_raw = resolve_place(page, pickup_spec, region, "pickup", rec["location_breakdown"])
+            pickup, pickup_raw = resolve_place(page, pickup_spec, region, "pickup",
+                                               rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
             destination, destination_raw = resolve_place(page, dest_spec, region, "destination",
-                                                         rec["location_breakdown"])
+                                                         rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
         phase = "route_form"
         with timer.phase("route_form"):
             open_route(page, pickup, pickup_raw, destination, destination_raw)
@@ -1161,7 +1378,8 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None) -> 
             if "/go/product-selection" in page.url:
                 priced_rows = wait_for_ride_options(page, pickup, destination)  # Uber skipped the form
             else:
-                priced_rows = search_rides(page, pickup, destination, screenshot_before=False)
+                priced_rows = search_rides(page, pickup, destination, screenshot_before=False,
+                                           human_delays=human_delays, delay_scale=delay_scale)
         phase = "price_extraction"
         with timer.phase("price_extraction"):
             fetched_at = datetime.now()
@@ -1354,29 +1572,41 @@ def result_csv_rows(batch_id: str, rec: dict) -> list[dict]:
 def append_results_csv(path: Path, batch_id: str, recs: list[dict]) -> int:
     """
     Append rows for finished routes (history is never overwritten). Each call writes complete rows in one
-    write and fsyncs, so an interrupted run leaves every earlier route's rows intact.
+    write and fsyncs, so an interrupted run leaves every earlier route's rows intact. Handles file lock retries
+    if Excel has the CSV open.
     """
     rows = [row for rec in recs for row in result_csv_rows(batch_id, rec)]
     if not rows:
         return 0
     path.parent.mkdir(parents=True, exist_ok=True)
-    is_new = not path.exists() or path.stat().st_size == 0
-    if not is_new:
-        with path.open(newline="", encoding="utf-8-sig") as f:
-            header = next(csv.reader(f), [])
-        if header != RESULTS_CSV_FIELDS:
-            raise ExtractorError(f"{path} has different columns {header}; not appending to avoid mixing formats.")
-    buffer = io.StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=RESULTS_CSV_FIELDS, lineterminator="\n")
-    if is_new:
-        writer.writeheader()
-    writer.writerows(rows)
-    # utf-8-sig: a BOM only when the file is created, so Excel shows ₹/$ correctly; appends add no BOM.
-    with path.open("a", newline="", encoding="utf-8-sig") as f:
-        f.write(buffer.getvalue())
-        f.flush()
-        os.fsync(f.fileno())
-    return len(rows)
+
+    for attempt in range(1, 4):
+        try:
+            is_new = not path.exists() or path.stat().st_size == 0
+            if not is_new:
+                with path.open(newline="", encoding="utf-8-sig") as f:
+                    header = next(csv.reader(f), [])
+                if header != RESULTS_CSV_FIELDS:
+                    raise ExtractorError(f"{path} has different columns {header}; not appending to avoid mixing formats.")
+            buffer = io.StringIO()
+            writer = csv.DictWriter(buffer, fieldnames=RESULTS_CSV_FIELDS, lineterminator="\n")
+            if is_new:
+                writer.writeheader()
+            writer.writerows(rows)
+            # utf-8-sig: a BOM only when the file is created, so Excel shows ₹/$ correctly; appends add no BOM.
+            with path.open("a", newline="", encoding="utf-8-sig") as f:
+                f.write(buffer.getvalue())
+                f.flush()
+                os.fsync(f.fileno())
+            return len(rows)
+        except PermissionError:
+            if attempt < 3:
+                print(f"[warn] {path.name} is currently open in Excel or another editor. Retrying append in 2s... (Please close Excel)")
+                time.sleep(2)
+            else:
+                print(f"[warn] Could not write to {path.name} because it is locked by Excel. (JSON results are still saved in data/results/!)")
+                return 0
+    return 0
 
 
 def cmd_batch(args: argparse.Namespace) -> int:
@@ -1387,6 +1617,9 @@ def cmd_batch(args: argparse.Namespace) -> int:
         wanted = {int(x) for x in args.only.split(",")}
         routes = [r for r in routes if r["id"] in wanted]
     locations, region = config["locations"], config.get("region")
+
+    human_delays = not getattr(args, "no_human_delays", False)
+    delay_scale = getattr(args, "pause_scale", 1.0)
 
     started = datetime.now()
     batch_id = f"batch-{started:%Y%m%d-%H%M%S}"
@@ -1426,7 +1659,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
             meta["resources_after_login"] = monitor.snapshot(context, page)
         except ExtractorError as exc:
             status = classify_failure(exc)
-            hint = ("Log in manually via `python uber_prices.py open`, then re-run."
+            hint = ("Log in manually via `python uber_prices.py open --account <name>`, then re-run."
                     if status in (AUTH_REQUIRED, SECURITY_CHALLENGE) else "Check the screenshot, then re-run.")
             print(f"[SESSION] {status}: {exc}\n[BATCH] Stopped before any route. {hint}")
             records = [{"id": r["id"], "category": r.get("category"), "pickup_label": r["pickup"],
@@ -1439,7 +1672,9 @@ def cmd_batch(args: argparse.Namespace) -> int:
         attach_search_monitor(page)
         search_unavailable_streak = 0
         for n, route in enumerate(routes, 1):
-            rec = run_route(page, route, locations, region)
+            if n > 1 and human_delays:
+                human_pause(2.0, 4.5, scale=delay_scale, enabled=True)
+            rec = run_route(page, route, locations, region, human_delays=human_delays, delay_scale=delay_scale)
             if rec["status"] not in (SKIPPED_MULTI_STOP, CONFIG_ERROR):
                 rec["resources"] = monitor.snapshot(context, page) if not page.is_closed() else {}
             records.append(rec)
@@ -1522,6 +1757,14 @@ def add_browser_options(p: argparse.ArgumentParser, suppress: bool) -> None:
     p.add_argument("--profile-dir", default=d(None),
                    help="Persistent profile folder (default: browser_profile/, the Chrome profile with the "
                         "Uber login). Firefox/WebKit need their own existing folder.")
+    p.add_argument("--account", default=d(None),
+                   help="Account name or phone number from data/accounts.csv to use for persistent profile session.")
+    p.add_argument("--user-agent", default=d(None),
+                   help="Custom User-Agent string to use for browser requests.")
+    p.add_argument("--no-human-delays", action="store_true", default=d(False),
+                   help="Disable human-like typing and activity pauses.")
+    p.add_argument("--pause-scale", type=float, default=d(1.0),
+                   help="Multiplier for human pauses (default 1.0; 0.5 = faster, 2.0 = slower).")
     p.add_argument("--chromium", action="store_true", default=d(False),
                    help="Legacy alias for --browser chromium.")
 
@@ -1540,6 +1783,20 @@ def build_parser() -> argparse.ArgumentParser:
     command("check-session", "Verify the saved browser profile is still logged in.")
     command("browser-info", "Read-only: show the browser environment the worker uses (no Uber action).")
 
+    acc_parser = command("accounts", "Manage registered mobile number accounts (list, add, setup).")
+    acc_sub = acc_parser.add_subparsers(dest="account_subcommand")
+    acc_sub.add_parser("list", help="List registered mobile accounts and their profile status.")
+    
+    add_acc = acc_sub.add_parser("add", help="Register a new mobile account.")
+    add_acc.add_argument("--name", required=True, help="Short identifier (e.g. Account_1).")
+    add_acc.add_argument("--phone", required=True, help="Mobile phone number.")
+    add_acc.add_argument("--profile-dir", help="Custom browser profile folder name.")
+    add_acc.add_argument("--user-agent", help="Custom User-Agent string (random realistic Chrome UA assigned if omitted).")
+    add_acc.add_argument("--notes", help="Optional notes for this account.")
+
+    setup_acc = acc_sub.add_parser("setup", help="Open browser to log in a specific account.")
+    setup_acc.add_argument("--account", help="Account name or phone number to set up.")
+
     locations = command("locations", "Enter and verify pickup/destination (no prices).")
     locations.add_argument("--pickup", required=True)
     locations.add_argument("--destination", required=True)
@@ -1557,6 +1814,8 @@ def build_parser() -> argparse.ArgumentParser:
     batch.add_argument("--routes", default=str(ROUTES_FILE),
                        help="Place mapping for the source/destination labels + region check (default: routes.json).")
     batch.add_argument("--only", help="Comma-separated route ids from the input CSV to run, e.g. 1,2 (default: all).")
+    batch.add_argument("--rotate-accounts", action="store_true",
+                       help="Automatically rotate active mobile accounts from data/accounts.csv.")
 
     prices = command("prices", "Extract ride prices for one route.")
     prices.add_argument("--pickup", required=True)
@@ -1568,7 +1827,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     handlers = {"open": cmd_open, "check-session": cmd_check_session, "browser-info": cmd_browser_info,
-                "locations": cmd_locations,
+                "accounts": cmd_accounts, "locations": cmd_locations,
                 "search": cmd_search, "prices": cmd_prices, "batch": cmd_batch}
     try:
         return handlers[args.command](args)

@@ -16,6 +16,7 @@ data/results/*
 data/*.log
 data/*.csv
 !data/routes.csv
+!data/accounts.csv
 *.log
 
 # Secrets / exported sessions (in case they are ever added)

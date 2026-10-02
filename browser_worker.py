@@ -11,6 +11,7 @@ navigator properties, client hints or any other browser value.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
@@ -24,12 +25,34 @@ ENGINES = {
     "firefox": ("firefox", None),
     "webkit": ("webkit", None),
 }
-DEFAULT_ENGINE = "chrome"  # unchanged default: installed Google Chrome, falling back to bundled Chromium
+DEFAULT_ENGINE = "chromium"  # Use Playwright's standalone Chromium by default for guaranteed visible windows
 CHROMIUM_FAMILY = {"chrome", "chromium"}
 
 
 class BrowserLaunchError(Exception):
     """The configured browser could not be started (e.g. its Playwright binary is not installed)."""
+
+
+def generate_client_hints(user_agent: str) -> dict[str, str]:
+    """Generate consistent Sec-CH-UA client hints and Accept-Language for a given Chrome User-Agent."""
+    headers = {
+        "accept-language": "en-US,en;q=0.9",
+    }
+    chrome_match = re.search(r"Chrome/(\d+)\.", user_agent)
+    version_major = chrome_match.group(1) if chrome_match else "131"
+
+    ua_lower = user_agent.lower()
+    if "macintosh" in ua_lower or "mac os x" in ua_lower:
+        platform = '"macOS"'
+    elif "linux" in ua_lower or "x11" in ua_lower:
+        platform = '"Linux"'
+    else:
+        platform = '"Windows"'
+
+    headers["sec-ch-ua"] = f'"Google Chrome";v="{version_major}", "Chromium";v="{version_major}", "Not?A_Brand";v="99"'
+    headers["sec-ch-ua-mobile"] = "?0"
+    headers["sec-ch-ua-platform"] = platform
+    return headers
 
 
 @dataclass
@@ -40,6 +63,9 @@ class BrowserConfig:
     # The default profile is a Chrome-format profile (it holds the manual Uber login). Firefox/WebKit
     # must never open it; for those engines an explicit, different profile_dir is required.
     default_profile_dir: Path | None = None
+    user_agent: str | None = None
+    viewport: dict[str, int] | None = None
+    extra_http_headers: dict[str, str] | None = None
 
 
 class PlaywrightWorker:
@@ -130,9 +156,34 @@ class PlaywrightWorker:
 
     def _launch(self) -> BrowserContext:
         cfg = self.config
-        options = dict(user_data_dir=str(cfg.profile_dir), headless=cfg.headless, viewport=None)
+        options = dict(
+            user_data_dir=str(cfg.profile_dir),
+            headless=cfg.headless,
+        )
+        if cfg.viewport is not None:
+            options["viewport"] = cfg.viewport
+        else:
+            options["no_viewport"] = True
+
+        if cfg.user_agent:
+            options["user_agent"] = cfg.user_agent
+            headers = generate_client_hints(cfg.user_agent)
+            if cfg.extra_http_headers:
+                headers.update(cfg.extra_http_headers)
+            options["extra_http_headers"] = headers
+        elif cfg.extra_http_headers:
+            options["extra_http_headers"] = cfg.extra_http_headers
+
         if cfg.engine in CHROMIUM_FAMILY:
-            options["args"] = ["--start-maximized"]
+            args = [
+                "--start-maximized",
+                "--window-position=0,0",
+                "--window-size=1400,900",
+                "--disable-blink-features=AutomationControlled",
+                "--no-first-run",
+                "--no-default-browser-check",
+            ]
+            options["args"] = args
 
         browser_type_name, channel = ENGINES[cfg.engine]
         browser_type = getattr(self.playwright, browser_type_name)
@@ -163,6 +214,21 @@ class PlaywrightWorker:
                 name = proc.name().lower()
                 if not any(skip in name for skip in ("python", "node", "conhost", "cmd")):
                     return proc.exe()
+        except psutil.Error:
+            pass
+        return None
+
+    def browser_pid(self) -> int | None:
+        """PID of the running browser process."""
+        try:
+            import psutil
+        except ImportError:
+            return None
+        try:
+            for proc in psutil.Process(os.getpid()).children(recursive=True):
+                name = proc.name().lower()
+                if not any(skip in name for skip in ("python", "node", "conhost", "cmd")):
+                    return proc.pid
         except psutil.Error:
             pass
         return None
