@@ -1,5 +1,5 @@
 account_name,phone_number,profile_dir,status,last_used,user_agent,notes
-Account_1,+916353487984,browser_profile_account1,active,2026-10-01T17:15:47,Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,Logged in via `open` command
-Account_2,+10000000002,browser_profile_account2,active,,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
-Account_3,+10000000003,browser_profile_account3,active,,Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
-Account_4,+10000000004,browser_profile_account4,active,,Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36
+Account_1,+916353487984,browser_profile_account1,active,2026-10-01T17:15:47,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36","Logged in via `open` command"
+Account_2,+10000000002,browser_profile_account2,active,,"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36","Secondary account (Mac Chrome 154)"
+Account_3,+10000000003,browser_profile_account3,active,,"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36","Backup account 1 (Linux Chrome 154)"
+Account_4,+10000000004,browser_profile_account4,active,,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36","Backup account 2 (Win Chrome 131)"

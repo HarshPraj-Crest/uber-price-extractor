@@ -39,7 +39,7 @@ def generate_client_hints(user_agent: str) -> dict[str, str]:
         "accept-language": "en-US,en;q=0.9",
     }
     chrome_match = re.search(r"Chrome/(\d+)\.", user_agent)
-    version_major = chrome_match.group(1) if chrome_match else "131"
+    version_major = chrome_match.group(1) if chrome_match else "154"
 
     ua_lower = user_agent.lower()
     if "macintosh" in ua_lower or "mac os x" in ua_lower:
@@ -49,7 +49,7 @@ def generate_client_hints(user_agent: str) -> dict[str, str]:
     else:
         platform = '"Windows"'
 
-    headers["sec-ch-ua"] = f'"Google Chrome";v="{version_major}", "Chromium";v="{version_major}", "Not?A_Brand";v="99"'
+    headers["sec-ch-ua"] = f'"Google Chrome";v="{version_major}", "Chromium";v="{version_major}", "Not A(Brand";v="99"'
     headers["sec-ch-ua-mobile"] = "?0"
     headers["sec-ch-ua-platform"] = platform
     return headers
@@ -66,6 +66,9 @@ class BrowserConfig:
     user_agent: str | None = None
     viewport: dict[str, int] | None = None
     extra_http_headers: dict[str, str] | None = None
+
+
+DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
 
 
 class PlaywrightWorker:
@@ -96,6 +99,7 @@ class PlaywrightWorker:
         try:
             self.context = self._launch()
             self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+            self.page.on("request", lambda request: print(f"\n=== CAPTURED REQUEST ===\nURL: {request.url}\nMethod: {request.method}\nPost Data: {request.post_data}\nHeaders: {request.headers}\n========================\n") if "graphql" in request.url or "location" in request.url.lower() or "pudo" in request.url.lower() else None)
         except PlaywrightError as exc:
             self.close()
             first = exc.message.splitlines()[0]
@@ -165,14 +169,12 @@ class PlaywrightWorker:
         else:
             options["no_viewport"] = True
 
-        if cfg.user_agent:
-            options["user_agent"] = cfg.user_agent
-            headers = generate_client_hints(cfg.user_agent)
-            if cfg.extra_http_headers:
-                headers.update(cfg.extra_http_headers)
-            options["extra_http_headers"] = headers
-        elif cfg.extra_http_headers:
-            options["extra_http_headers"] = cfg.extra_http_headers
+        ua_to_use = cfg.user_agent or DEFAULT_USER_AGENT
+        options["user_agent"] = ua_to_use
+        headers = generate_client_hints(ua_to_use)
+        if cfg.extra_http_headers:
+            headers.update(cfg.extra_http_headers)
+        options["extra_http_headers"] = headers
 
         if cfg.engine in CHROMIUM_FAMILY:
             args = [
@@ -190,16 +192,20 @@ class PlaywrightWorker:
         if channel:
             try:
                 context = browser_type.launch_persistent_context(channel=channel, **options)
+                context.set_extra_http_headers(headers)
                 self.engine_used = cfg.engine
                 return context
             except PlaywrightError as exc:
-                # Same behaviour as before the refactor: installed Chrome missing -> bundled Chromium.
                 print(f"[warn] Could not launch installed Google Chrome ({exc.message.splitlines()[0]}); "
                       "falling back to Playwright Chromium.")
                 self.engine_used = "chromium"
-                return browser_type.launch_persistent_context(**options)
+                context = browser_type.launch_persistent_context(**options)
+                context.set_extra_http_headers(headers)
+                return context
         self.engine_used = cfg.engine
-        return browser_type.launch_persistent_context(**options)
+        context = browser_type.launch_persistent_context(**options)
+        context.set_extra_http_headers(headers)
+        return context
 
     # -- diagnostics (read-only) -------------------------------------------------------------------
 

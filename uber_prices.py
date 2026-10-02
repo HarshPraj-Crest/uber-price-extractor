@@ -69,32 +69,47 @@ from urllib.parse import parse_qs, urlencode, urlparse
 ACCOUNTS_CSV = BASE_DIR / "data" / "accounts.csv" if "BASE_DIR" in locals() else Path(__file__).resolve().parent / "data" / "accounts.csv"
 
 REALISTIC_USER_AGENTS = [
-    # Windows Chrome 131 & 130
+    # Windows Chrome 154, 131 & 130
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-    # macOS Chrome 131 & 130
+    # macOS Chrome 154, 131 & 130
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-    # Linux Chrome 131 & 130
+    # Linux Chrome 154, 131 & 130
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
 ]
 
 DEFAULT_ACCOUNTS = [
-    {"account_name": "Account_1", "phone_number": "+10000000001", "profile_dir": "browser_profile_account1", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[0], "notes": "Primary account (Win Chrome 131)"},
-    {"account_name": "Account_2", "phone_number": "+10000000002", "profile_dir": "browser_profile_account2", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[2], "notes": "Secondary account (Mac Chrome 131)"},
-    {"account_name": "Account_3", "phone_number": "+10000000003", "profile_dir": "browser_profile_account3", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[4], "notes": "Backup account 1 (Linux Chrome 131)"},
-    {"account_name": "Account_4", "phone_number": "+10000000004", "profile_dir": "browser_profile_account4", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[1], "notes": "Backup account 2 (Win Chrome 130)"},
+    {"account_name": "Account_1", "phone_number": "+10000000001", "profile_dir": "browser_profile_account1", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[0], "notes": "Primary account (Win Chrome 154)"},
+    {"account_name": "Account_2", "phone_number": "+10000000002", "profile_dir": "browser_profile_account2", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[3], "notes": "Secondary account (Mac Chrome 154)"},
+    {"account_name": "Account_3", "phone_number": "+10000000003", "profile_dir": "browser_profile_account3", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[6], "notes": "Backup account 1 (Linux Chrome 154)"},
+    {"account_name": "Account_4", "phone_number": "+10000000004", "profile_dir": "browser_profile_account4", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[1], "notes": "Backup account 2 (Win Chrome 131)"},
 ]
 
 
-def human_pause(min_sec: float = 0.5, max_sec: float = 1.5, scale: float = 1.0, enabled: bool = True) -> float:
+def human_pause(min_sec: float = 1.2, max_sec: float = 3.5, scale: float = 1.0, enabled: bool = True) -> float:
     """Simulate human reaction time and pauses to avoid bot detection."""
     if not enabled or scale <= 0:
         return 0.0
     duration = random.uniform(min_sec, max_sec) * scale
     time.sleep(duration)
     return duration
+
+
+def human_mouse_move(page: Page, locator) -> None:
+    """Simulate subtle mouse movement to target element before clicking."""
+    try:
+        box = locator.bounding_box()
+        if box:
+            target_x = box["x"] + box["width"] / 2 + random.uniform(-5, 5)
+            target_y = box["y"] + box["height"] / 2 + random.uniform(-3, 3)
+            page.mouse.move(target_x, target_y, steps=random.randint(4, 10))
+    except Exception:
+        pass
 
 
 def load_accounts(csv_path: Path | None = None) -> list[dict]:
@@ -127,7 +142,7 @@ def save_accounts(accounts: list[dict], csv_path: Path | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = ["account_name", "phone_number", "profile_dir", "status", "last_used", "user_agent", "notes"]
     with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()
         for acc in accounts:
             writer.writerow({k: acc.get(k, "") for k in fieldnames})
@@ -410,19 +425,21 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
         raise ExtractorError(f"Could not find the {role} input on the page. Screenshot: {shot}")
     lap("field_ready")
 
-    # Slight human reaction pause before clicking input
-    human_pause(0.3, 0.7, scale=delay_scale, enabled=human_delays)
+    # Human reaction pause before clicking input
+    human_pause(1.2, 2.5, scale=delay_scale, enabled=human_delays)
 
     def type_name() -> None:
+        if human_delays and delay_scale > 0:
+            human_mouse_move(page, field)
         field.click()
-        human_pause(0.2, 0.4, scale=delay_scale, enabled=human_delays)
+        human_pause(0.4, 0.8, scale=delay_scale, enabled=human_delays)
         field.fill("")
         if human_delays and delay_scale > 0:
             for char in spec.name:
                 field.press(char)
-                char_delay = random.uniform(0.06, 0.16) * delay_scale
+                char_delay = random.uniform(0.06, 0.18) * delay_scale
                 if char in " ,.-":
-                    char_delay += random.uniform(0.1, 0.25) * delay_scale
+                    char_delay += random.uniform(0.12, 0.3) * delay_scale
                 time.sleep(char_delay)
         else:
             field.press_sequentially(spec.name, delay=60)
@@ -460,10 +477,13 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
         print(f"  -> exact match: [{chosen.index}] {chosen}")
 
     # Human pause to visually confirm match before clicking
-    human_pause(0.5, 1.2, scale=delay_scale, enabled=human_delays)
+    human_pause(0.8, 1.8, scale=delay_scale, enabled=human_delays)
 
     before = page.url
-    page.locator(SUGGESTION_SELECTOR).nth(chosen.index).click()
+    target_option = page.locator(SUGGESTION_SELECTOR).nth(chosen.index)
+    if human_delays and delay_scale > 0:
+        human_mouse_move(page, target_option)
+    target_option.click()
     try:
         # Uber updates the URL client-side; "commit" avoids waiting for a full page-load event that the
         # live map delays by several seconds (measured: up to the whole 15s timeout per selection).
@@ -824,6 +844,11 @@ def browser_config(args: argparse.Namespace) -> BrowserConfig:
 
     if profile_dir_arg:
         profile = Path(profile_dir_arg)
+        if not user_agent:
+            for acc in load_accounts():
+                if acc.get("profile_dir") and Path(acc["profile_dir"]).name == profile.name:
+                    user_agent = acc.get("user_agent")
+                    break
     elif account_arg:
         acc = get_account(account_arg)
         if not acc:
@@ -834,7 +859,18 @@ def browser_config(args: argparse.Namespace) -> BrowserConfig:
         if not user_agent:
             user_agent = acc.get("user_agent")
     else:
-        profile = PROFILE_DIR
+        accounts = load_accounts()
+        acc = accounts[0] if accounts else None
+        if acc:
+            prof_name = acc.get("profile_dir") or "browser_profile_account1"
+            profile = BASE_DIR / prof_name
+            if not user_agent:
+                user_agent = acc.get("user_agent")
+        else:
+            profile = PROFILE_DIR
+
+    if not user_agent:
+        user_agent = REALISTIC_USER_AGENTS[0]
 
     return BrowserConfig(profile_dir=profile, engine=engine, default_profile_dir=PROFILE_DIR, user_agent=user_agent)
 
