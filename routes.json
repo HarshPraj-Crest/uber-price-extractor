@@ -37,7 +37,7 @@
     "Miami International Airport":   {"name": "Miami International Airport (MIA)", "address": ["FL"]},
     "MIA Airport":                   {"name": "Miami International Airport (MIA)", "address": ["FL"]},
     "Fort Lauderdale Airport (FLL)": {"name": "Fort Lauderdale-Hollywood International Airport (FLL)", "address": ["FL"]},
-    "Brickell":                      {"name": "Brickell", "address": ["Miami", "FL"]},
+    "Brickell":                      {"name": "Brickell City Centre", "aliases": ["Brickell", "Brickell City Center", "Brickell Station"], "address": ["Miami", "FL"]},
     "Downtown Miami":                {"name": "Downtown Miami", "address": ["Miami", "FL"]},
     "Miami":                         {"name": "Miami", "address": ["FL"]},
     "Miami Beach":                   {"name": "Miami Beach", "address": ["FL"]},

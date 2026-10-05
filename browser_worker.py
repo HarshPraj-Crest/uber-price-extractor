@@ -55,6 +55,50 @@ def generate_client_hints(user_agent: str) -> dict[str, str]:
     return headers
 
 
+def parse_proxy(proxy: str | dict | None) -> dict[str, str] | None:
+    """
+    Parse HTTP/SOCKS5 proxy strings or dicts into Playwright's expected proxy format:
+    {"server": "http://ip:port", "username": "...", "password": "..."} or {"server": "socks5://ip:port"}
+    """
+    if not proxy:
+        return None
+    if isinstance(proxy, dict):
+        return proxy
+    proxy_str = str(proxy).strip()
+    if not proxy_str:
+        return None
+
+    # Handle standard URLs like http://user:pass@host:port or socks5://user:pass@host:port
+    from urllib.parse import urlparse
+    parsed = urlparse(proxy_str)
+    if parsed.scheme:
+        scheme = parsed.scheme
+        hostname = parsed.hostname or ""
+        port = f":{parsed.port}" if parsed.port else ""
+        server_url = f"{scheme}://{hostname}{port}"
+        res = {"server": server_url}
+        if parsed.username:
+            res["username"] = parsed.username
+        if parsed.password:
+            res["password"] = parsed.password
+        return res
+
+    # Handle user:pass@host:port without scheme (defaults to http)
+    if "@" in proxy_str:
+        auth, server = proxy_str.rsplit("@", 1)
+        res = {"server": f"http://{server}"}
+        if ":" in auth:
+            u, p = auth.split(":", 1)
+            res["username"] = u
+            res["password"] = p
+        else:
+            res["username"] = auth
+        return res
+
+    # Plain host:port or ip:port (defaults to http)
+    return {"server": f"http://{proxy_str}"}
+
+
 @dataclass
 class BrowserConfig:
     profile_dir: Path
@@ -66,6 +110,7 @@ class BrowserConfig:
     user_agent: str | None = None
     viewport: dict[str, int] | None = None
     extra_http_headers: dict[str, str] | None = None
+    proxy: str | dict | None = None
 
 
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
@@ -99,7 +144,6 @@ class PlaywrightWorker:
         try:
             self.context = self._launch()
             self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
-            self.page.on("request", lambda request: print(f"\n=== CAPTURED REQUEST ===\nURL: {request.url}\nMethod: {request.method}\nPost Data: {request.post_data}\nHeaders: {request.headers}\n========================\n") if "graphql" in request.url or "location" in request.url.lower() or "pudo" in request.url.lower() else None)
         except PlaywrightError as exc:
             self.close()
             first = exc.message.splitlines()[0]
@@ -175,6 +219,11 @@ class PlaywrightWorker:
         if cfg.extra_http_headers:
             headers.update(cfg.extra_http_headers)
         options["extra_http_headers"] = headers
+
+        if cfg.proxy:
+            parsed_proxy = parse_proxy(cfg.proxy)
+            if parsed_proxy:
+                options["proxy"] = parsed_proxy
 
         if cfg.engine in CHROMIUM_FAMILY:
             args = [

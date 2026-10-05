@@ -84,10 +84,10 @@ REALISTIC_USER_AGENTS = [
 ]
 
 DEFAULT_ACCOUNTS = [
-    {"account_name": "Account_1", "phone_number": "+10000000001", "profile_dir": "browser_profile_account1", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[0], "notes": "Primary account (Win Chrome 154)"},
-    {"account_name": "Account_2", "phone_number": "+10000000002", "profile_dir": "browser_profile_account2", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[3], "notes": "Secondary account (Mac Chrome 154)"},
-    {"account_name": "Account_3", "phone_number": "+10000000003", "profile_dir": "browser_profile_account3", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[6], "notes": "Backup account 1 (Linux Chrome 154)"},
-    {"account_name": "Account_4", "phone_number": "+10000000004", "profile_dir": "browser_profile_account4", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[1], "notes": "Backup account 2 (Win Chrome 131)"},
+    {"account_name": "Account_1", "phone_number": "+10000000001", "profile_dir": "browser_profile_account1", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[0], "proxy": "", "notes": "Primary account (Win Chrome 154)"},
+    {"account_name": "Account_2", "phone_number": "+10000000002", "profile_dir": "browser_profile_account2", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[3], "proxy": "", "notes": "Secondary account (Mac Chrome 154)"},
+    {"account_name": "Account_3", "phone_number": "+10000000003", "profile_dir": "browser_profile_account3", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[6], "proxy": "", "notes": "Backup account 1 (Linux Chrome 154)"},
+    {"account_name": "Account_4", "phone_number": "+10000000004", "profile_dir": "browser_profile_account4", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[1], "proxy": "", "notes": "Backup account 2 (Win Chrome 131)"},
 ]
 
 
@@ -125,11 +125,14 @@ def load_accounts(csv_path: Path | None = None) -> list[dict]:
         save_accounts(DEFAULT_ACCOUNTS, path)
         return [dict(a) for a in DEFAULT_ACCOUNTS]
     
-    # Auto-assign realistic User-Agent to existing accounts if missing
+    # Auto-assign missing fields (user_agent, proxy)
     updated = False
     for acc in accounts:
         if not acc.get("user_agent"):
             acc["user_agent"] = random.choice(REALISTIC_USER_AGENTS)
+            updated = True
+        if "proxy" not in acc:
+            acc["proxy"] = ""
             updated = True
     if updated:
         save_accounts(accounts, path)
@@ -140,7 +143,7 @@ def load_accounts(csv_path: Path | None = None) -> list[dict]:
 def save_accounts(accounts: list[dict], csv_path: Path | None = None) -> None:
     path = csv_path or ACCOUNTS_CSV
     path.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames = ["account_name", "phone_number", "profile_dir", "status", "last_used", "user_agent", "notes"]
+    fieldnames = ["account_name", "phone_number", "profile_dir", "status", "last_used", "user_agent", "proxy", "notes"]
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()
@@ -172,6 +175,92 @@ def update_account_status(identifier: str, status: str, notes: str | None = None
     if target:
         save_accounts(accounts, csv_path)
     return target
+
+
+ROTATION_STATE_FILE = Path(__file__).resolve().parent / "data" / "rotation_state.json"
+
+
+def load_rotation_state() -> dict:
+    if ROTATION_STATE_FILE.exists():
+        try:
+            return json.loads(ROTATION_STATE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {
+        "last_account": None, "last_rotated_at": None, "run_count": 0,
+        "last_batch_id": None, "completed_routes": 0, "failed_routes": 0, "remaining_routes": 0, "total_routes": 0
+    }
+
+
+def save_rotation_state(account_name: str, batch_id: str | None = None,
+                        completed: int = 0, remaining: int = 0, total: int = 0,
+                        failed: int = 0) -> dict:
+    ROTATION_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    state = load_rotation_state()
+    state["last_account"] = account_name
+    state["last_rotated_at"] = datetime.now().isoformat(timespec="seconds")
+    if batch_id:
+        state["last_batch_id"] = batch_id
+    state["completed_routes"] = completed
+    state["remaining_routes"] = remaining
+    state["total_routes"] = total
+    state["failed_routes"] = failed
+    if batch_id and batch_id != state.get("last_recorded_batch"):
+        state["run_count"] = state.get("run_count", 0) + 1
+        state["last_recorded_batch"] = batch_id
+    ROTATION_STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    return state
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    state = load_rotation_state()
+    accounts = load_accounts()
+    print("\n==================================================")
+    print("           UBER PRICE EXTRACTOR STATUS            ")
+    print("==================================================")
+    print(f"Last Used Account:   {state.get('last_account') or 'None'}")
+    print(f"Last Rotated At:     {state.get('last_rotated_at') or 'Never'}")
+    print(f"Total Batch Runs:    {state.get('run_count', 0)}")
+    print(f"Last Batch ID:       {state.get('last_batch_id') or 'N/A'}")
+    print("--------------------------------------------------")
+    print(f"Completed Routes:    {state.get('completed_routes', 0)} / {state.get('total_routes', 0)}")
+    print(f"Failed Routes:       {state.get('failed_routes', 0)}")
+    print(f"Remaining Routes:    {state.get('remaining_routes', 0)}")
+    print("--------------------------------------------------")
+    try:
+        import psutil
+        vm = psutil.virtual_memory()
+        print(f"Current System RAM:  {round(vm.used / (1024**3), 2)} GB / {round(vm.total / (1024**3), 2)} GB ({vm.percent}% in use)")
+        print("--------------------------------------------------")
+    except Exception:
+        pass
+    print("Registered Accounts:")
+    for acc in accounts:
+        proxy_str = acc.get("proxy") or "Direct (No Proxy)"
+        status_str = acc.get("status") or "active"
+        last_used = acc.get("last_used") or "Never"
+        print(f"  • {acc.get('account_name')}: status={status_str} | proxy={proxy_str} | last_used={last_used}")
+    print("==================================================\n")
+    return 0
+
+
+def get_next_rotated_account(csv_path: Path | None = None) -> dict:
+    accounts = load_accounts(csv_path)
+    active = [a for a in accounts if a.get("status") == "active"]
+    if not active:
+        raise ExtractorError("No active accounts found in data/accounts.csv")
+
+    state = load_rotation_state()
+    last_account_name = state.get("last_account")
+
+    names = [a.get("account_name") for a in active]
+    if last_account_name in names:
+        idx = names.index(last_account_name)
+        next_acc = active[(idx + 1) % len(active)]
+    else:
+        next_acc = active[0]
+
+    return next_acc
 
 
 def get_next_active_account(current_account_name: str | None = None, csv_path: Path | None = None) -> dict | None:
@@ -239,6 +328,16 @@ class WrongLocationSelectedError(ExtractorError):
 class SearchUnavailableError(ExtractorError):
     """Uber returned no suggestion list at all for the typed text (not the same as an ambiguous place)."""
 
+
+class MaxStopsExceededError(ExtractorError):
+    """Raised when a route specifies more intermediate stops than Uber supports (maximum 2)."""
+
+
+class AddStopButtonNotFoundError(ExtractorError):
+    """Raised when the 'Add stop' UI button cannot be found on Uber's location card."""
+
+
+MAX_INTERMEDIATE_STOPS = 2
 
 # Last Uber location-search response per page (diagnostics for SearchUnavailableError).
 _last_search_response: dict[int, str] = {}
@@ -324,6 +423,14 @@ class LocationSpec:
         return normalize(s.name) in {normalize(n) for n in (self.name, *self.aliases)} and all(
             f" {normalize(h)} " in address for h in self.address_hints)
 
+    def matches_partial(self, s: Suggestion) -> bool:
+        address = f" {normalize(s.address)} "
+        norm_spec_names = [normalize(n) for n in (self.name, *self.aliases)]
+        norm_s_name = normalize(s.name)
+        partial_name_match = any(sn in norm_s_name or norm_s_name in sn for sn in norm_spec_names)
+        address_match = all(f" {normalize(h)} " in address for h in self.address_hints)
+        return partial_name_match and address_match
+
     def __str__(self) -> str:
         names = " / ".join((self.name, *self.aliases))
         return names + (f" [address: {', '.join(self.address_hints)}]" if self.address_hints else "")
@@ -331,28 +438,76 @@ class LocationSpec:
 
 def match_suggestion(spec: LocationSpec, suggestions: list[Suggestion]) -> Suggestion:
     """
-    Pick the single suggestion that exactly matches the requested location.
-    Never falls back to the first / closest result: no match or several matches is an error.
+    Pick the suggestion that matches the requested location.
+    Tries exact matching first. If no exact match is found, falls back to partial/prefix matching.
     """
     matches = [s for s in suggestions if spec.matches(s)]
+    if not matches:
+        matches = [s for s in suggestions if spec.matches_partial(s)]
+
     choices = "\n".join(f"    [{s.index}] {s}" for s in suggestions) or "    (none)"
     if not matches:
         raise LocationNotFoundError(
-            f"No Uber suggestion exactly matches {str(spec)!r}. Nothing was selected.\n"
+            f"No Uber suggestion matches {str(spec)!r}. Nothing was selected.\n"
             f"  Suggestions Uber showed:\n{choices}\n"
             "  Use the exact name of the correct place (and address words to pin it).")
-    if len({(normalize(s.name), normalize(s.address)) for s in matches}) > 1:
-        listed = "\n".join(f"    [{s.index}] {s}" for s in matches)
-        raise AmbiguousLocationError(
-            f"{str(spec)!r} matches several different places. Nothing was selected.\n{listed}\n"
-            "  Add address words to pin one, e.g. \"<name>, <street or area>\".")
-    return matches[0]
+
+    unique_matches = {}
+    for s in matches:
+        key = (normalize(s.name), normalize(s.address))
+        if key not in unique_matches:
+            unique_matches[key] = s
+
+    if len(unique_matches) > 1:
+        exact_matches = [s for s in matches if spec.matches(s)]
+        if len(exact_matches) == 1:
+            return exact_matches[0]
+        # Return top match from Uber's suggestion list among partial matches
+        return matches[0]
+
+    return list(unique_matches.values())[0]
 
 
-def location_field(page: Page, role: str):
-    container = page.locator('[data-testid="pudo-select-v2"]').filter(
-        has=page.locator(f'[data-testid="{FIELD_ICON_TESTID[role]}"]'))
-    return container.get_by_role("combobox")
+def find_add_stop_button(page: Page):
+    """Find Uber's 'Add stop' button on the form card."""
+    candidates = [
+        page.get_by_role("button", name=re.compile(r"add\s+(a\s+)?stop", re.I)),
+        page.locator('button:has-text("Add stop")'),
+        page.locator('button:has-text("Add a stop")'),
+        page.locator('[aria-label*="Add stop" i]'),
+        page.locator('[aria-label*="Add a stop" i]'),
+        page.locator('[data-testid*="add-stop"]'),
+        page.locator('[data-testid*="add_stop"]'),
+    ]
+    for cand in candidates:
+        try:
+            if cand.count() > 0:
+                first = cand.first
+                if first.is_visible():
+                    return first
+        except PlaywrightError:
+            continue
+    return None
+
+
+def location_field(page: Page, role: str, stop_index: int = 0, total_stops: int = 0):
+    if role == "pickup":
+        container = page.locator('[data-testid="pudo-select-v2"]').filter(
+            has=page.locator(f'[data-testid="{FIELD_ICON_TESTID["pickup"]}"]')).first
+        return container.get_by_role("combobox")
+
+    drop_containers = page.locator('[data-testid="pudo-select-v2"]').filter(
+        has=page.locator(f'[data-testid="{FIELD_ICON_TESTID["destination"]}"]'))
+
+    if role in ("stop", "intermediate_stop") or role.startswith("stop"):
+        if drop_containers.count() > stop_index:
+            return drop_containers.nth(stop_index).get_by_role("combobox")
+        return drop_containers.first.get_by_role("combobox")
+    else:  # destination
+        idx = total_stops if total_stops > 0 else 0
+        if drop_containers.count() > idx:
+            return drop_containers.nth(idx).get_by_role("combobox")
+        return drop_containers.last.get_by_role("combobox")
 
 
 def read_suggestions(page: Page, query: str) -> list[Suggestion]:
@@ -383,7 +538,7 @@ def read_suggestions(page: Page, query: str) -> list[Suggestion]:
 def url_param_for_role(role: str, stop_index: int = 0, total_stops: int = 0) -> str:
     if role == "pickup":
         return "pickup"
-    elif role == "stop":
+    elif role in ("stop", "intermediate_stop") or role.startswith("stop"):
         return f"drop[{stop_index}]"
     elif role == "destination":
         return f"drop[{total_stops}]" if total_stops > 0 else "drop[0]"
@@ -416,7 +571,8 @@ def selected_location_from_url(page: Page, role: str = "pickup", stop_index: int
 
 def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bool = True,
                     timings: dict | None = None, human_delays: bool = True,
-                    delay_scale: float = 1.0) -> tuple[list[Suggestion], Suggestion, SelectedLocation]:
+                    delay_scale: float = 1.0, stop_index: int = 0,
+                    total_stops: int = 0) -> tuple[list[Suggestion], Suggestion, SelectedLocation]:
     """Type the name, list Uber's suggestions, click only the exact match, and verify Uber's selection."""
     if isinstance(spec, str):
         spec = LocationSpec.parse(spec)
@@ -429,7 +585,7 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
         timings[key] = round(timings.get(key, 0) + now - t, 2)
         t = now
 
-    field = location_field(page, role)
+    field = location_field(page, role, stop_index=stop_index, total_stops=total_stops)
     try:
         field.wait_for(state="visible", timeout=20_000)
     except PlaywrightError:
@@ -443,7 +599,10 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
     def type_name() -> None:
         if human_delays and delay_scale > 0:
             human_mouse_move(page, field)
-        field.click()
+        try:
+            field.click(timeout=5000)
+        except PlaywrightError:
+            field.click(force=True)
         human_pause(0.4, 0.8, scale=delay_scale, enabled=human_delays)
         field.fill("")
         if human_delays and delay_scale > 0:
@@ -495,28 +654,24 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
     target_option = page.locator(SUGGESTION_SELECTOR).nth(chosen.index)
     if human_delays and delay_scale > 0:
         human_mouse_move(page, target_option)
-    target_option.click()
     try:
-        # Uber updates the URL client-side; "commit" avoids waiting for a full page-load event that the
-        # live map delays by several seconds (measured: up to the whole 15s timeout per selection).
-        page.wait_for_url(lambda url: url != before and URL_PARAM[role] in parse_qs(urlparse(url).query),
+        target_option.click(timeout=5000)
+    except PlaywrightError:
+        target_option.click(force=True)
+    try:
+        target_param = url_param_for_role(role, stop_index, total_stops)
+        page.wait_for_url(lambda url: url != before and target_param in parse_qs(urlparse(url).query),
                           timeout=15_000, wait_until="commit")
     except PlaywrightError:
         pass
     lap("click_and_confirm")
-    selected = selected_location_from_url(page, role)
+    selected = selected_location_from_url(page, role, stop_index=stop_index, total_stops=total_stops)
     if selected is None:
         shot = save_screenshot(page, f"{role}-not-confirmed")
         raise WrongLocationSelectedError(
             f"Clicked {chosen.name!r} but could not confirm Uber's {role} selection. Screenshot: {shot}")
-    # Uber may store the name without a trailing code shown in the suggestion:
-    # "Miami International Airport (MIA)" -> "Miami International Airport".
     accepted = {normalize(chosen.name), normalize(re.sub(r"\s*\([^)]*\)\s*$", "", chosen.name))}
     name_ok = normalize(selected.name) in accepted
-    # ...or with ", <part of the clicked suggestion's own address>" appended:
-    # clicked "The Setai" (address "Collins Avenue, Miami Beach, FL, USA") -> stored "The Setai, Miami Beach".
-    # The part before the last comma must be an accepted name, and the appended part must appear as whole
-    # words in that suggestion's address. Nothing else may differ.
     if not name_ok and "," in selected.name:
         head, suffix = selected.name.rsplit(",", 1)
         name_ok = (normalize(head) in accepted and normalize(suffix) != ""
@@ -528,13 +683,92 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
     return suggestions, chosen, selected
 
 
+def select_route_ui(page: Page, pickup_query: LocationSpec | str,
+                    destination_query: LocationSpec | str,
+                    stops_queries: list[LocationSpec | str] | None = None,
+                    human_delays: bool = True,
+                    delay_scale: float = 1.0) -> tuple[SelectedLocation, list[SelectedLocation], SelectedLocation]:
+    """Select pickup, click 'Add stop' for each intermediate stop, and select destination sequentially via UI."""
+    stops_queries = stops_queries or []
+    total_stops = len(stops_queries)
+    if total_stops > MAX_INTERMEDIATE_STOPS:
+        raise MaxStopsExceededError(
+            f"Uber supports a maximum of {MAX_INTERMEDIATE_STOPS} intermediate stops (requested {total_stops})."
+        )
+
+    open_booking_page(page)
+
+    # 1. Select Pickup
+    _, _, pickup = select_location(page, "pickup", pickup_query, total_stops=total_stops,
+                                   human_delays=human_delays, delay_scale=delay_scale)
+
+    # 2. Add and Select each Intermediate Stop
+    selected_stops: list[SelectedLocation] = []
+    for idx, stop_q in enumerate(stops_queries):
+        add_btn = find_add_stop_button(page)
+        if not add_btn:
+            shot = save_screenshot(page, f"add-stop-{idx+1}-missing")
+            raise AddStopButtonNotFoundError(
+                f"Could not find 'Add stop' button on page for stop {idx+1}. Screenshot: {shot}"
+            )
+
+        human_pause(0.8, 1.5, scale=delay_scale, enabled=human_delays)
+        if human_delays and delay_scale > 0:
+            human_mouse_move(page, add_btn)
+        safe_click(add_btn, "the Add stop button")
+        human_pause(0.5, 1.2, scale=delay_scale, enabled=human_delays)
+
+        _, _, stop_loc = select_location(page, "stop", stop_q, stop_index=idx, total_stops=total_stops,
+                                        human_delays=human_delays, delay_scale=delay_scale)
+        selected_stops.append(stop_loc)
+
+    # 3. Select Destination
+    _, _, destination = select_location(page, "destination", destination_query, total_stops=total_stops,
+                                        human_delays=human_delays, delay_scale=delay_scale)
+
+    verify_route_in_url(page, pickup, destination, stops=selected_stops)
+    return pickup, selected_stops, destination
+
+
 def select_route(page: Page, pickup_query: LocationSpec | str,
-                 destination_query: LocationSpec | str) -> tuple[SelectedLocation, SelectedLocation]:
-    """Select and verify pickup then destination; confirm the pickup survived the second selection."""
-    _, _, pickup = select_location(page, "pickup", pickup_query)
-    _, _, destination = select_location(page, "destination", destination_query)
-    verify_route_in_url(page, pickup, destination)
-    return pickup, destination
+                 destination_query: LocationSpec | str,
+                 stops_queries: list[LocationSpec | str] | None = None,
+                 method: str = "url",
+                 human_delays: bool = True,
+                 delay_scale: float = 1.0) -> tuple[SelectedLocation, list[SelectedLocation], SelectedLocation]:
+    """Select route using either Direct URL method ('url') or UI interaction method ('ui'). Supports 0, 1, or 2 stops."""
+    stops_queries = stops_queries or []
+    total_stops = len(stops_queries)
+    if total_stops > MAX_INTERMEDIATE_STOPS:
+        raise MaxStopsExceededError(
+            f"Uber supports a maximum of {MAX_INTERMEDIATE_STOPS} intermediate stops (requested {total_stops})."
+        )
+
+    if method == "ui":
+        return select_route_ui(page, pickup_query, destination_query, stops_queries,
+                               human_delays=human_delays, delay_scale=delay_scale)
+
+    # Default method: "url" (Direct URL method)
+    pickup_spec = LocationSpec.parse(pickup_query) if isinstance(pickup_query, str) else pickup_query
+    dest_spec = LocationSpec.parse(destination_query) if isinstance(destination_query, str) else destination_query
+    stops_specs = [LocationSpec.parse(s) if isinstance(s, str) else s for s in stops_queries]
+
+    if not stops_specs:
+        _, _, pickup = select_location(page, "pickup", pickup_spec, human_delays=human_delays, delay_scale=delay_scale)
+        _, _, destination = select_location(page, "destination", dest_spec, human_delays=human_delays, delay_scale=delay_scale)
+        verify_route_in_url(page, pickup, destination)
+        return pickup, [], destination
+    else:
+        pickup, pickup_raw = resolve_place(page, pickup_spec, None, "pickup", human_delays=human_delays, delay_scale=delay_scale)
+        resolved_stops = []
+        stops_locs = []
+        for idx, stop_spec in enumerate(stops_specs, 1):
+            s_loc, s_raw = resolve_place(page, stop_spec, None, f"stop_{idx}", human_delays=human_delays, delay_scale=delay_scale)
+            resolved_stops.append((s_loc, s_raw))
+            stops_locs.append(s_loc)
+        destination, destination_raw = resolve_place(page, dest_spec, None, "destination", human_delays=human_delays, delay_scale=delay_scale)
+        open_route(page, pickup, pickup_raw, destination, destination_raw, stops=resolved_stops)
+        return pickup, stops_locs, destination
 
 
 def verify_route_in_url(page: Page, pickup: SelectedLocation, destination: SelectedLocation,
@@ -584,10 +818,22 @@ class RideOptionsNotLoadedError(ExtractorError):
 
 def safe_click(locator, what: str) -> None:
     """Click only if the element's visible text / accessible name has no booking-related words."""
-    label = " ".join(filter(None, [locator.inner_text(), locator.get_attribute("aria-label")])).lower()
+    try:
+        txt = locator.inner_text(timeout=2000)
+    except PlaywrightError:
+        txt = ""
+    try:
+        aria = locator.get_attribute("aria-label", timeout=2000) or ""
+    except PlaywrightError:
+        aria = ""
+    label = f"{txt} {aria}".lower()
     if any(word in label for word in FORBIDDEN_CLICK_WORDS):
         raise ExtractorError(f"Refusing to click {what}: its label {label!r} looks like a booking action.")
-    locator.click()
+    try:
+        locator.click(timeout=5000)
+    except PlaywrightError:
+        locator.click(force=True)
+
 
 
 def find_search_button(page: Page):
@@ -623,6 +869,9 @@ def search_rides(page: Page, pickup: SelectedLocation, destination: SelectedLoca
                  screenshot_before: bool = True, human_delays: bool = True,
                  delay_scale: float = 1.0, stops: list[SelectedLocation] | None = None) -> int:
     """Click Search and wait until Uber actually shows priced ride options. Returns the number of priced rows."""
+    if "/go/product-selection" in page.url:
+        print("\n[info] Page already on product selection, waiting for ride options...")
+        return wait_for_ride_options(page, pickup, destination, stops=stops)
     button = find_search_button(page)
     if screenshot_before:
         before = save_screenshot(page, "before-search")
@@ -833,9 +1082,9 @@ def route_result(pickup: SelectedLocation, destination: SelectedLocation, rides:
 
 
 def save_result(pickup: SelectedLocation, destination: SelectedLocation, rides: list[RideOption],
-                fetched_at: datetime) -> Path:
+                fetched_at: datetime, stops: list[SelectedLocation] | None = None) -> Path:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    result = route_result(pickup, destination, rides, fetched_at)
+    result = route_result(pickup, destination, rides, fetched_at, stops=stops)
     path = RESULTS_DIR / f"{fetched_at:%Y%m%d-%H%M%S}_{slug(pickup.name)}_to_{slug(destination.name)}.json"
     path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
@@ -878,16 +1127,28 @@ def browser_config(args: argparse.Namespace) -> BrowserConfig:
     
     profile = None
     user_agent = getattr(args, "user_agent", None)
+    proxy = getattr(args, "proxy", None)
     account_arg = getattr(args, "account", None)
     profile_dir_arg = getattr(args, "profile_dir", None)
-
-    if profile_dir_arg:
-        profile = Path(profile_dir_arg)
+    rotate_arg = getattr(args, "rotate_accounts", False) or getattr(args, "rotate", False)
+    if rotate_arg:
+        acc = get_next_rotated_account()
+        prof_name = acc.get("profile_dir") or f"browser_profile_{acc['account_name']}"
+        profile = BASE_DIR / prof_name
         if not user_agent:
-            for acc in load_accounts():
-                if acc.get("profile_dir") and Path(acc["profile_dir"]).name == profile.name:
+            user_agent = acc.get("user_agent")
+        if not proxy:
+            proxy = acc.get("proxy")
+        args.selected_account_name = acc["account_name"]
+    elif profile_dir_arg:
+        profile = Path(profile_dir_arg)
+        for acc in load_accounts():
+            if acc.get("profile_dir") and Path(acc["profile_dir"]).name == profile.name:
+                if not user_agent:
                     user_agent = acc.get("user_agent")
-                    break
+                if not proxy:
+                    proxy = acc.get("proxy")
+                break
     elif account_arg:
         acc = get_account(account_arg)
         if not acc:
@@ -897,6 +1158,8 @@ def browser_config(args: argparse.Namespace) -> BrowserConfig:
         profile = BASE_DIR / prof_name
         if not user_agent:
             user_agent = acc.get("user_agent")
+        if not proxy:
+            proxy = acc.get("proxy")
     else:
         accounts = load_accounts()
         acc = accounts[0] if accounts else None
@@ -905,13 +1168,15 @@ def browser_config(args: argparse.Namespace) -> BrowserConfig:
             profile = BASE_DIR / prof_name
             if not user_agent:
                 user_agent = acc.get("user_agent")
+            if not proxy:
+                proxy = acc.get("proxy")
         else:
             profile = PROFILE_DIR
 
     if not user_agent:
         user_agent = REALISTIC_USER_AGENTS[0]
 
-    return BrowserConfig(profile_dir=profile, engine=engine, default_profile_dir=PROFILE_DIR, user_agent=user_agent)
+    return BrowserConfig(profile_dir=profile, engine=engine, default_profile_dir=PROFILE_DIR, user_agent=user_agent, proxy=proxy)
 
 
 def open_worker(args: argparse.Namespace, create_profile: bool = False) -> PlaywrightWorker:
@@ -921,7 +1186,7 @@ def open_worker(args: argparse.Namespace, create_profile: bool = False) -> Playw
     """
     try:
         cfg = browser_config(args)
-        if (create_profile or getattr(args, "account", None)) and not Path(cfg.profile_dir).exists():
+        if (create_profile or getattr(args, "account", None) or getattr(args, "rotate_accounts", False)) and not Path(cfg.profile_dir).exists():
             Path(cfg.profile_dir).mkdir(parents=True, exist_ok=True)
         worker = PlaywrightWorker(cfg)
         worker.check_profile()
@@ -994,18 +1259,21 @@ def cmd_accounts(args: argparse.Namespace) -> int:
     if sub == "list" or sub is None:
         accounts = load_accounts()
         print(f"\n[ACCOUNTS] {len(accounts)} registered mobile account(s) in {ACCOUNTS_CSV.name}:")
-        print(f"{'Account Name':<14} {'Phone Number':<16} {'Status':<10} {'Last Used':<22} {'Profile Dir':<28} {'Notes'}")
-        print("-" * 115)
+        print(f"{'Account Name':<14} {'Phone Number':<16} {'Status':<10} {'Last Used':<20} {'Proxy':<28} {'Profile Dir':<28} {'Notes'}")
+        print("-" * 140)
         for a in accounts:
             last_used = a.get("last_used") or "never"
-            print(f"{a.get('account_name', ''):<14} {a.get('phone_number', ''):<16} {a.get('status', ''):<10} {last_used:<22} {a.get('profile_dir', ''):<28} {a.get('notes', '')}")
+            proxy_str = a.get("proxy") or "direct"
+            print(f"{a.get('account_name', ''):<14} {a.get('phone_number', ''):<16} {a.get('status', ''):<10} {last_used:<20} {proxy_str:<28} {a.get('profile_dir', ''):<28} {a.get('notes', '')}")
         print()
         print("Usage tips:")
-        print("  Log in an account:  python uber_prices.py open --account Account_1")
-        print("  Check session:      python uber_prices.py check-session --account Account_1")
-        print("  Cross-check status: python uber_prices.py accounts check")
-        print("  Run batch:          python uber_prices.py batch --account Account_1 --rotate-accounts")
-        return 0
+        print("  Log in an account:    python uber_prices.py open --account Account_1")
+        print("  Set account proxy:    python uber_prices.py accounts set-proxy --account Account_1 --proxy http://user:pass@ip:port")
+        print("  Check session:        python uber_prices.py check-session --account Account_1")
+        print("  Cross-check status:   python uber_prices.py accounts check")
+        print("  Run batch:            python uber_prices.py batch --account Account_1 --rotate-accounts")
+    elif sub == "status":
+        return cmd_status(args)
     elif sub == "check":
         accounts = load_accounts()
         print(f"\n[ACCOUNT SESSION CROSS-CHECK] Verifying {len(accounts)} account(s):\n")
@@ -1026,21 +1294,46 @@ def cmd_accounts(args: argparse.Namespace) -> int:
             except Exception:
                 pass
             status_str = "Session profile present (cookies DB exists)" if has_cookies else "Profile directory exists (no session recorded)"
-            print(f"  {acc_name:<12} → {prof_dir_name:<28} → {status_str}")
+            proxy_info = f" [Proxy: {a.get('proxy')}]" if a.get("proxy") else ""
+            print(f"  {acc_name:<12} → {prof_dir_name:<28} → {status_str}{proxy_info}")
         print()
         return 0
     elif sub == "add":
         name, phone = args.name, args.phone
         prof = args.profile_dir or f"browser_profile_{name.lower().replace(' ', '_')}"
         ua = args.user_agent or random.choice(REALISTIC_USER_AGENTS)
+        proxy_val = getattr(args, "proxy", "") or ""
         accounts = load_accounts()
         if any(a.get("account_name", "").lower() == name.lower() for a in accounts):
             print(f"[error] Account '{name}' already exists.")
             return 1
-        new_acc = {"account_name": name, "phone_number": phone, "profile_dir": prof, "status": "active", "last_used": "", "user_agent": ua, "notes": args.notes or ""}
+        new_acc = {"account_name": name, "phone_number": phone, "profile_dir": prof, "status": "active", "last_used": "", "user_agent": ua, "proxy": proxy_val, "notes": args.notes or ""}
         accounts.append(new_acc)
         save_accounts(accounts)
-        print(f"[ok] Registered account '{name}' ({phone}) -> {prof}/ [User-Agent: {ua[:40]}...]")
+        proxy_msg = f", Proxy: {proxy_val}" if proxy_val else ""
+        print(f"[ok] Registered account '{name}' ({phone}) -> {prof}/ [User-Agent: {ua[:30]}...{proxy_msg}]")
+        return 0
+    elif sub == "set-proxy":
+        identifier = args.account
+        proxy_val = (args.proxy or "").strip()
+        if proxy_val.lower() in ("direct", "none", "off", "clear"):
+            proxy_val = ""
+        accounts = load_accounts()
+        target = None
+        ident_clean = identifier.strip().lower()
+        for acc in accounts:
+            if acc.get("account_name", "").strip().lower() == ident_clean or acc.get("phone_number", "").strip().lower() == ident_clean:
+                acc["proxy"] = proxy_val
+                target = acc
+                break
+        if not target:
+            print(f"[error] Account '{identifier}' not found.")
+            return 1
+        save_accounts(accounts)
+        if proxy_val:
+            print(f"[ok] Updated proxy for account '{target['account_name']}': {proxy_val}")
+        else:
+            print(f"[ok] Cleared proxy for account '{target['account_name']}' (now using direct connection).")
         return 0
     elif sub == "setup":
         acc_id = args.account or "Account_1"
@@ -1060,6 +1353,7 @@ def cmd_open(args: argparse.Namespace) -> int:
         print(f"[DEBUG] Browser Process ID (PID): {worker.browser_pid()}")
         print(f"[DEBUG] Profile directory: {worker.config.profile_dir}")
         print(f"[DEBUG] User-Agent: {worker.config.user_agent or 'Default'}")
+        print(f"[DEBUG] Proxy: {worker.config.proxy or 'None (Direct connection)'}")
         try:
             page.goto(UBER_HOME_URL, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
             try:
@@ -1168,19 +1462,40 @@ def cmd_browser_info(args: argparse.Namespace) -> int:
     return 0
 
 
+def parse_stops_arg(stops_arg: list[str] | str | None) -> list[str]:
+    """Helper to convert CLI --stops args into a clean list of strings."""
+    if not stops_arg:
+        return []
+    if isinstance(stops_arg, str):
+        return [s.strip() for s in stops_arg.split("|") if s.strip()]
+    res = []
+    for item in stops_arg:
+        res.extend([s.strip() for s in item.split("|") if s.strip()])
+    return res
+
+
 def cmd_locations(args: argparse.Namespace) -> int:
-    """Step 5-6: enter and verify both locations. Does not look at prices or click anything else."""
+    """Step 5-6: enter and verify locations (pickup, optional stops, destination)."""
     with open_worker(args) as worker:
         page = worker.page
         page.set_default_timeout(30_000)
         try:
             ensure_logged_in(page)
             print("[ok] Session is logged in.")
-            pickup, destination = select_route(page, args.pickup, args.destination)
+            stops = parse_stops_arg(getattr(args, "stops", None))
+            method = getattr(args, "method", "url")
+            human_delays = not getattr(args, "no_human_delays", False)
+            delay_scale = getattr(args, "pause_scale", 1.0)
+
+            pickup, selected_stops, destination = select_route(
+                page, args.pickup, args.destination, stops_queries=stops,
+                method=method, human_delays=human_delays, delay_scale=delay_scale)
             print()
             print_selected("PICKUP", pickup)
+            for idx, s in enumerate(selected_stops, 1):
+                print_selected(f"STOP {idx}", s)
             print_selected("DESTINATION", destination)
-            print(f"\n[ok] Both locations verified. Page: {urlparse(page.url).path} (nothing else was clicked).")
+            print(f"\n[ok] All locations verified (method: {method}). Page: {urlparse(page.url).path} (nothing else was clicked).")
             save_screenshot(page, "locations-selected")
             return 0
         except PlaywrightError as exc:
@@ -1189,22 +1504,30 @@ def cmd_locations(args: argparse.Namespace) -> int:
 
 
 def cmd_search(args: argparse.Namespace) -> int:
-    """Step 7: select + verify both locations, click Search, wait for priced ride options, leave browser open."""
+    """Step 7: select + verify route (with optional stops), click Search, wait for priced ride options."""
     with open_worker(args) as worker:
         page = worker.page
         page.set_default_timeout(30_000)
         try:
             ensure_logged_in(page)
             print("[ok] Session is logged in.")
-            pickup, destination = select_route(page, args.pickup, args.destination)
+            stops = parse_stops_arg(getattr(args, "stops", None))
+            method = getattr(args, "method", "url")
+            human_delays = not getattr(args, "no_human_delays", False)
+            delay_scale = getattr(args, "pause_scale", 1.0)
+
+            pickup, selected_stops, destination = select_route(
+                page, args.pickup, args.destination, stops_queries=stops,
+                method=method, human_delays=human_delays, delay_scale=delay_scale)
             print()
             print_selected("PICKUP", pickup)
+            for idx, s in enumerate(selected_stops, 1):
+                print_selected(f"STOP {idx}", s)
             print_selected("DESTINATION", destination)
-            priced_rows = search_rides(page, pickup, destination)
+            priced_rows = search_rides(page, pickup, destination, stops=selected_stops)
             shot = save_screenshot(page, "ride-options")
             print(f"\n[ok] Ride options page loaded: {priced_rows} ride option(s) showing a price.")
             print(f"     Route still verified (same place ids). Screenshot: {shot}")
-            print("     Nothing was requested or booked. Price extraction is not implemented yet.")
             return 0
         except PlaywrightError as exc:
             if page.is_closed():
@@ -1217,15 +1540,22 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 
 def cmd_prices(args: argparse.Namespace) -> int:
-    """Steps 8-10: select + verify route, Search, extract ride prices, validate, save JSON. Read-only."""
+    """Steps 8-10: select + verify route (with optional stops), Search, extract ride prices, validate, save JSON."""
     with open_worker(args) as worker:
         page = worker.page
         page.set_default_timeout(30_000)
         try:
             ensure_logged_in(page)
             print("[ok] Session is logged in.")
-            pickup, destination = select_route(page, args.pickup, args.destination)
-            priced_rows = search_rides(page, pickup, destination)
+            stops = parse_stops_arg(getattr(args, "stops", None))
+            method = getattr(args, "method", "url")
+            human_delays = not getattr(args, "no_human_delays", False)
+            delay_scale = getattr(args, "pause_scale", 1.0)
+
+            pickup, selected_stops, destination = select_route(
+                page, args.pickup, args.destination, stops_queries=stops,
+                method=method, human_delays=human_delays, delay_scale=delay_scale)
+            priced_rows = search_rides(page, pickup, destination, stops=selected_stops)
             fetched_at = datetime.now()
             rides, priced_rows = extract_rides_stable(page)
             validate_rides(rides, priced_rows)
@@ -1233,12 +1563,14 @@ def cmd_prices(args: argparse.Namespace) -> int:
 
             print()
             print_selected("PICKUP", pickup)
+            for idx, s in enumerate(selected_stops, 1):
+                print_selected(f"STOP {idx}", s)
             print_selected("DESTINATION", destination)
             print("RIDE PRICES:")
             for r in rides:
                 was = f"  (was {r.original_price})" if r.original_price else ""
                 print(f"  {r.ride_type}: {r.price}{was}")
-            path = save_result(pickup, destination, rides, fetched_at)
+            path = save_result(pickup, destination, rides, fetched_at, stops=selected_stops)
             print(f"\n[ok] {len(rides)} ride prices extracted and validated. Nothing was requested or booked.")
             print(f"     JSON: {path}")
             print(f"     Screenshot: {shot}")
@@ -1283,6 +1615,10 @@ def classify_failure(exc: Exception) -> str:
         return AUTH_REQUIRED
     if isinstance(exc, SecurityChallengeError):
         return SECURITY_CHALLENGE
+    if isinstance(exc, MaxStopsExceededError):
+        return "MAX_STOPS_EXCEEDED"
+    if isinstance(exc, AddStopButtonNotFoundError):
+        return "ADD_STOP_NOT_FOUND"
     if isinstance(exc, SearchUnavailableError):
         return SEARCH_UNAVAILABLE
     if isinstance(exc, (LocationNotFoundError, AmbiguousLocationError)):
@@ -1385,7 +1721,10 @@ def open_route(page: Page, pickup: SelectedLocation, pickup_raw: str,
         # 1. Verify pickup text
         deadline = time.perf_counter() + 10
         while True:
-            shown = pickup_container.inner_text().strip() if pickup_container.count() else ""
+            try:
+                shown = pickup_container.inner_text(timeout=1000).strip() if pickup_container.count() else ""
+            except PlaywrightError:
+                shown = ""
             if normalize(pickup.name) in normalize(shown):
                 break
             if time.perf_counter() > deadline:
@@ -1398,7 +1737,10 @@ def open_route(page: Page, pickup: SelectedLocation, pickup_raw: str,
             stop_container = drop_containers.nth(idx)
             deadline = time.perf_counter() + 10
             while True:
-                shown = stop_container.inner_text().strip() if stop_container.count() else ""
+                try:
+                    shown = stop_container.inner_text(timeout=1000).strip() if stop_container.count() else ""
+                except PlaywrightError:
+                    shown = ""
                 if normalize(stop_loc.name) in normalize(shown):
                     break
                 if time.perf_counter() > deadline:
@@ -1410,7 +1752,10 @@ def open_route(page: Page, pickup: SelectedLocation, pickup_raw: str,
         dest_container = drop_containers.nth(total_stops) if drop_containers.count() > total_stops else drop_containers.last
         deadline = time.perf_counter() + 10
         while True:
-            shown = dest_container.inner_text().strip() if dest_container.count() else ""
+            try:
+                shown = dest_container.inner_text(timeout=1000).strip() if dest_container.count() else ""
+            except PlaywrightError:
+                shown = ""
             if normalize(destination.name) in normalize(shown):
                 break
             if time.perf_counter() > deadline:
@@ -1459,6 +1804,10 @@ class BrowserMonitor:
             pass
         if self._psutil:
             try:
+                vm = self._psutil.virtual_memory()
+                snap["sys_ram_pct"] = vm.percent
+                snap["sys_ram_used_gb"] = round(vm.used / (1024**3), 2)
+                snap["sys_ram_total_gb"] = round(vm.total / (1024**3), 2)
                 if self._root is None or not self._root.is_running():
                     self._root = self._find_root()
                 if self._root:
@@ -1502,6 +1851,11 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None,
         "timings": {}, "location_breakdown": {}, "prices_count": 0, "result": None, "screenshot": None,
     }
     stops_labels = route.get("stops", [])
+    if len(stops_labels) > MAX_INTERMEDIATE_STOPS:
+        rec.update(status="MAX_STOPS_EXCEEDED",
+                   reason=f"Route #{route['id']} has {len(stops_labels)} stops; Uber maximum is {MAX_INTERMEDIATE_STOPS}.",
+                   ended_at=rec["started_at"])
+        return rec
     all_required_labels = [route["pickup"]] + stops_labels + [route["destination"]]
     missing = [label for label in all_required_labels if label not in locations]
     if missing:
@@ -1595,8 +1949,8 @@ def print_route_record(rec: dict, n: int, total: int) -> None:
             print(f"    {line}")
     if rec.get("resources", {}).get("chrome_rss_mb") is not None:
         r = rec["resources"]
-        print(f"  Browser: {r['chrome_rss_mb']:.0f} MB RSS, {r['chrome_processes']} procs, "
-              f"{r['open_pages']} page(s), JS heap {r['js_heap_mb']} MB")
+        sys_str = f" | System RAM: {r.get('sys_ram_used_gb')} GB / {r.get('sys_ram_total_gb')} GB ({r.get('sys_ram_pct')}%)" if r.get("sys_ram_pct") is not None else ""
+        print(f"  Resource Usage: Chrome {r['chrome_rss_mb']:.0f} MB RSS ({r['chrome_processes']} procs, {r['open_pages']} tab(s), JS heap {r['js_heap_mb']} MB){sys_str}")
 
 
 def summarize_batch(records: list[dict], total_seconds: float, launches: int) -> dict:
@@ -1682,7 +2036,7 @@ def write_batch_files(batch_id: str, meta: dict, records: list[dict], summary: d
 ROUTES_CSV = BASE_DIR / "data" / "routes.csv"
 RESULTS_CSV = BASE_DIR / "data" / "results.csv"
 RESULTS_CSV_FIELDS = [
-    "run_id", "timestamp", "route_id", "source", "stops", "destination", "status", "reason",
+    "run_id", "timestamp", "account", "route_id", "source", "stops", "destination", "status", "reason",
     "ride_name", "current_price", "original_price", "currency", "price_value", "original_price_value",
     "pickup_place_id", "destination_place_id",
 ]
@@ -1725,7 +2079,8 @@ def load_routes_csv(path: Path) -> list[dict]:
 def result_csv_rows(batch_id: str, rec: dict) -> list[dict]:
     """One row per extracted ride for a successful route; one status row for any other outcome."""
     stops_str = "|".join(rec.get("stops_labels") or [])
-    base = {"run_id": batch_id, "route_id": rec["id"], "source": rec["pickup_label"],
+    account_str = rec.get("account") or rec.get("account_name") or ""
+    base = {"run_id": batch_id, "account": account_str, "route_id": rec["id"], "source": rec["pickup_label"],
             "stops": stops_str, "destination": rec["destination_label"], "status": rec["status"],
             "reason": (rec.get("reason") or "").splitlines()[0] if rec.get("reason") else ""}
     res = rec.get("result")
@@ -1745,7 +2100,7 @@ def append_results_csv(path: Path, batch_id: str, recs: list[dict]) -> int:
     """
     Append rows for finished routes (history is never overwritten). Each call writes complete rows in one
     write and fsyncs, so an interrupted run leaves every earlier route's rows intact. Handles file lock retries
-    if Excel has the CSV open. Auto-migrates old headers to include the 'stops' column if needed.
+    if Excel has the CSV open. Auto-migrates old headers to include 'stops' and 'account' columns if needed.
     """
     rows = [row for rec in recs for row in result_csv_rows(batch_id, rec)]
     if not rows:
@@ -1759,12 +2114,17 @@ def append_results_csv(path: Path, batch_id: str, recs: list[dict]) -> int:
                 with path.open(newline="", encoding="utf-8-sig") as f:
                     header = next(csv.reader(f), [])
                 if header != RESULTS_CSV_FIELDS:
-                    OLD_FIELDS = [
+                    PREV_V1 = [
                         "run_id", "timestamp", "route_id", "source", "destination", "status", "reason",
                         "ride_name", "current_price", "original_price", "currency", "price_value", "original_price_value",
                         "pickup_place_id", "destination_place_id",
                     ]
-                    if header == OLD_FIELDS:
+                    PREV_V2 = [
+                        "run_id", "timestamp", "route_id", "source", "stops", "destination", "status", "reason",
+                        "ride_name", "current_price", "original_price", "currency", "price_value", "original_price_value",
+                        "pickup_place_id", "destination_place_id",
+                    ]
+                    if header in (PREV_V1, PREV_V2):
                         with path.open(newline="", encoding="utf-8-sig") as f:
                             r = csv.DictReader(f)
                             old_rows = list(r)
@@ -1772,7 +2132,8 @@ def append_results_csv(path: Path, batch_id: str, recs: list[dict]) -> int:
                             w = csv.DictWriter(f, fieldnames=RESULTS_CSV_FIELDS, lineterminator="\n")
                             w.writeheader()
                             for old_row in old_rows:
-                                old_row["stops"] = ""
+                                old_row.setdefault("stops", "")
+                                old_row.setdefault("account", "Account_1")
                                 w.writerow({k: old_row.get(k, "") for k in RESULTS_CSV_FIELDS})
                     else:
                         raise ExtractorError(f"{path} has different columns {header}; not appending to avoid mixing formats.")
@@ -1829,6 +2190,15 @@ def cmd_batch(args: argparse.Namespace) -> int:
     t = time.perf_counter()
     worker = open_worker(args)
     worker.start()
+
+    active_acc_name = getattr(args, "selected_account_name", None) or getattr(args, "account", None) or (load_accounts()[0]["account_name"] if load_accounts() else "Account_1")
+    meta["account"] = active_acc_name
+    if getattr(args, "rotate_accounts", False):
+        update_account_status(active_acc_name, "active")
+        print(f"[ROTATION] Next account selected: {active_acc_name} (Profile: {worker.config.profile_dir.name}, Proxy: {worker.config.proxy or 'Direct'})")
+
+    save_rotation_state(active_acc_name, batch_id=batch_id, completed=0, remaining=len(routes), total=len(routes), failed=0)
+
     monitor = BrowserMonitor(worker.config.profile_dir)
     try:
         context, page = worker.context, worker.page
@@ -1848,7 +2218,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
                     if status in (AUTH_REQUIRED, SECURITY_CHALLENGE) else "Check the screenshot, then re-run.")
             print(f"[SESSION] {status}: {exc}\n[BATCH] Stopped before any route. {hint}")
             records = [{"id": r["id"], "category": r.get("category"), "pickup_label": r["pickup"],
-                        "destination_label": r["destination"], "status": NOT_RUN, "reason": status,
+                        "destination_label": r["destination"], "account": active_acc_name, "status": NOT_RUN, "reason": status,
                         "failed_phase": None, "timings": {}, "prices_count": 0, "result": None} for r in routes]
             meta["stopped_reason"] = status
             routes = []
@@ -1859,11 +2229,38 @@ def cmd_batch(args: argparse.Namespace) -> int:
         for n, route in enumerate(routes, 1):
             if n > 1 and human_delays:
                 human_pause(2.0, 4.5, scale=delay_scale, enabled=True)
-            rec = run_route(page, route, locations, region, human_delays=human_delays, delay_scale=delay_scale)
+            try:
+                rec = run_route(page, route, locations, region, human_delays=human_delays, delay_scale=delay_scale)
+            except Exception as exc:
+                shot = save_screenshot(page, f"route-{route['id']}-exception")
+                rec = {
+                    "id": route["id"], "category": route.get("category"),
+                    "pickup_label": route["pickup"], "destination_label": route["destination"],
+                    "stops_labels": route.get("stops", []),
+                    "status": FAILED, "reason": f"Unhandled exception: {exc}",
+                    "failed_phase": "unhandled_exception", "timings": {}, "prices_count": 0, "result": None,
+                    "screenshot": shot
+                }
+            rec["account"] = active_acc_name
             if rec["status"] not in (SKIPPED_MULTI_STOP, CONFIG_ERROR):
                 rec["resources"] = monitor.snapshot(context, page) if not page.is_closed() else {}
             records.append(rec)
+
+            successful_cnt = sum(1 for r in records if r["status"] == SUCCESS)
+            failed_cnt = sum(1 for r in records if r["status"] not in (SUCCESS, NOT_RUN, SKIPPED_MULTI_STOP))
+            remaining_cnt = len(routes) - n
+
+            save_rotation_state(active_acc_name, batch_id=batch_id, completed=successful_cnt, remaining=remaining_cnt, total=len(routes), failed=failed_cnt)
+
+            elapsed_sec = time.perf_counter() - batch_start
+            elapsed_str = f"{int(elapsed_sec // 60)}m {int(elapsed_sec % 60):02d}s"
+            r_snap = rec.get("resources", {})
+            mem_str = f"{r_snap.get('chrome_rss_mb', 0):.0f} MB Chrome RAM" if r_snap.get("chrome_rss_mb") else "N/A"
+            sys_ram_str = f"{r_snap.get('sys_ram_pct')}% System RAM" if r_snap.get("sys_ram_pct") else ""
+            ram_info = f" | {mem_str}" + (f" ({sys_ram_str})" if sys_ram_str else "")
+
             print_route_record(rec, n, len(routes))
+            print(f"[PROGRESS] Account: {active_acc_name} | Time: {elapsed_str}{ram_info} | Done: {n}/{len(routes)} (Success: {successful_cnt}, Failed: {failed_cnt}, Remaining: {remaining_cnt})")
             write_batch_files(batch_id, meta, records, None)
             flush_csv()
             if rec["status"] == SEARCH_UNAVAILABLE:
@@ -1879,6 +2276,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
                 for rest in routes[n:]:
                     records.append({"id": rest["id"], "category": rest.get("category"),
                                     "pickup_label": rest["pickup"], "destination_label": rest["destination"],
+                                    "account": active_acc_name,
                                     "status": NOT_RUN, "reason": f"Batch stopped after {stop_reason}",
                                     "failed_phase": None, "timings": {}, "prices_count": 0, "result": None})
                 exit_code = 1
@@ -1946,6 +2344,8 @@ def add_browser_options(p: argparse.ArgumentParser, suppress: bool) -> None:
                    help="Account name or phone number from data/accounts.csv to use for persistent profile session.")
     p.add_argument("--user-agent", default=d(None),
                    help="Custom User-Agent string to use for browser requests.")
+    p.add_argument("--proxy", default=d(None),
+                   help="Proxy server URL (e.g. http://user:pass@ip:port or socks5://ip:port) to use for browser requests.")
     p.add_argument("--no-human-delays", action="store_true", default=d(False),
                    help="Disable human-like typing and activity pauses.")
     p.add_argument("--pause-scale", type=float, default=d(1.0),
@@ -1968,44 +2368,58 @@ def build_parser() -> argparse.ArgumentParser:
     command("check-session", "Verify the saved browser profile is still logged in.")
     command("browser-info", "Read-only: show the browser environment the worker uses (no Uber action).")
 
-    acc_parser = command("accounts", "Manage registered mobile number accounts (list, check, add, setup).")
+    acc_parser = command("accounts", "Manage registered mobile number accounts (list, check, add, set-proxy, setup, status).")
     acc_sub = acc_parser.add_subparsers(dest="account_subcommand")
     acc_sub.add_parser("list", help="List registered mobile accounts and their profile status.")
     acc_sub.add_parser("check", help="Diagnostic check of registered accounts and profiles.")
+    acc_sub.add_parser("status", help="Show account & batch rotation status.")
     
     add_acc = acc_sub.add_parser("add", help="Register a new mobile account.")
     add_acc.add_argument("--name", required=True, help="Short identifier (e.g. Account_1).")
     add_acc.add_argument("--phone", required=True, help="Mobile phone number.")
     add_acc.add_argument("--profile-dir", help="Custom browser profile folder name.")
     add_acc.add_argument("--user-agent", help="Custom User-Agent string (random realistic Chrome UA assigned if omitted).")
+    add_acc.add_argument("--proxy", help="Custom proxy URL (http://user:pass@ip:port or socks5://ip:port).")
     add_acc.add_argument("--notes", help="Optional notes for this account.")
+
+    set_proxy = acc_sub.add_parser("set-proxy", help="Set or clear proxy for an account.")
+    set_proxy.add_argument("--account", required=True, help="Account name or phone number.")
+    set_proxy.add_argument("--proxy", default="", help="Proxy URL (http://user:pass@ip:port or socks5://ip:port). Pass empty string to clear.")
 
     setup_acc = acc_sub.add_parser("setup", help="Open browser to log in a specific account.")
     setup_acc.add_argument("--account", help="Account name or phone number to set up.")
 
-    locations = command("locations", "Enter and verify pickup/destination (no prices).")
+    command("status", "Show current batch status, last used account, completed/remaining routes, and registered accounts.")
+
+    locations = command("locations", "Enter and verify pickup, optional stops, and destination (no prices).")
     locations.add_argument("--pickup", required=True)
     locations.add_argument("--destination", required=True)
+    locations.add_argument("--stops", nargs="*", help="Optional intermediate stops (e.g. --stops 'Stop 1' 'Stop 2' or 'Stop 1|Stop 2').")
+    locations.add_argument("--method", choices=["url", "ui"], default="url", help="Selection method: url (direct URL) or ui (interactive Add Stop UI).")
 
-    search = command("search", "Select route, click Search, show ride options (browser stays open).")
+    search = command("search", "Select route with optional stops, click Search, show ride options (browser stays open).")
     search.add_argument("--pickup", required=True)
     search.add_argument("--destination", required=True)
+    search.add_argument("--stops", nargs="*", help="Optional intermediate stops.")
+    search.add_argument("--method", choices=["url", "ui"], default="url", help="Selection method: url (direct URL) or ui (interactive Add Stop UI).")
     search.add_argument("--close", action="store_true", help="Close the browser at the end instead of leaving it open.")
 
     batch = command("batch", "Run the routes from the input CSV sequentially in ONE browser.")
     batch.add_argument("--input", default=str(ROUTES_CSV),
-                       help="Routes to run: CSV with route_id,source,destination[,category] (default: data/routes.csv).")
+                       help="Routes to run: CSV with route_id,source,destination[,category,stops] (default: data/routes.csv).")
     batch.add_argument("--output", default=str(RESULTS_CSV),
                        help="CSV that results are APPENDED to, one row per ride (default: data/results.csv).")
     batch.add_argument("--routes", default=str(ROUTES_FILE),
                        help="Place mapping for the source/destination labels + region check (default: routes.json).")
     batch.add_argument("--only", help="Comma-separated route ids from the input CSV to run, e.g. 1,2 (default: all).")
-    batch.add_argument("--rotate-accounts", action="store_true",
-                       help="Automatically rotate active mobile accounts from data/accounts.csv.")
+    batch.add_argument("--rotate", "--rotate-accounts", dest="rotate_accounts", action="store_true",
+                       help="Automatically rotate to the next active mobile account in data/accounts.csv for this batch run.")
 
-    prices = command("prices", "Extract ride prices for one route.")
+    prices = command("prices", "Extract ride prices for one route with optional stops.")
     prices.add_argument("--pickup", required=True)
     prices.add_argument("--destination", required=True)
+    prices.add_argument("--stops", nargs="*", help="Optional intermediate stops.")
+    prices.add_argument("--method", choices=["url", "ui"], default="url", help="Selection method: url (direct URL) or ui (interactive Add Stop UI).")
     prices.add_argument("--keep-open", action="store_true", help="Leave the browser open at the end for checking.")
     return parser
 
@@ -2014,7 +2428,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     handlers = {"open": cmd_open, "check-session": cmd_check_session, "browser-info": cmd_browser_info,
                 "accounts": cmd_accounts, "locations": cmd_locations,
-                "search": cmd_search, "prices": cmd_prices, "batch": cmd_batch}
+                "search": cmd_search, "prices": cmd_prices, "batch": cmd_batch, "status": cmd_status}
     try:
         return handlers[args.command](args)
     except (ExtractorError, BrowserLaunchError) as exc:
