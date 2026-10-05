@@ -16,7 +16,7 @@ This project automates the sequential extraction of ride prices (e.g., UberX, Ub
 
 ---
 
-## 2. Workflow & Multi-Account Rotation
+## 2. System Architecture & Workflow
 
 ```
 +---------------------------+
@@ -25,7 +25,7 @@ This project automates the sequential extraction of ride prices (e.g., UberX, Ub
               |
               v
 +---------------------------+
-|    data/accounts.csv      |  (Accounts, proxies, user-agents, profiles)
+|    data/accounts.csv      |  (Accounts, proxies, user-agents, profile folders)
 +-------------+-------------+
               |
               v
@@ -87,44 +87,79 @@ uber-price-extractor/
 
 ---
 
-## 4. Setup & First-Time Login (Saving Session Cookies)
+## 4. Complete Setup Guide (From Cloning to Running)
 
-Before running automated extraction, you must log in and save session cookies for each account you want to use.
+Follow these steps to set up the project on a new machine:
+
+### Step 1: Clone the Repository
+```cmd
+git clone https://github.com/lina-d-crest/uber-price-extractor.git
+cd uber-price-extractor
+```
+
+### Step 2: Create Python Virtual Environment
+```cmd
+python -m venv .venv
+```
+
+### Step 3: Activate Environment & Install Requirements
+```cmd
+# On PowerShell:
+.\.venv\Scripts\activate
+
+# Upgrade pip and install dependencies:
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+### Step 4: Install Playwright Chromium Browser
+```cmd
+python -m playwright install chromium
+```
+
+---
+
+## 5. Account Setup & First-Time Login (Saving Session Cookies)
+
+Before running automated price extraction, you must establish and save authenticated session cookies for each mobile account you intend to use.
 
 ### Step 1: Register Accounts in `data/accounts.csv`
-You can register new accounts using the CLI or reference `data/accounts_example.csv`:
+You can reference `data/accounts_example.csv` or register accounts via the CLI:
 
 ```cmd
-# Register Account_1
+# List registered accounts
+python uber_prices.py accounts list
+
+# Add Account_1
 python uber_prices.py accounts add --name Account_1 --phone +15551234567
 
-# Register Account_2
+# Add Account_2
 python uber_prices.py accounts add --name Account_2 --phone +15559876543
 ```
 
-### Step 2: Log In & Save Cookies for the First Account (`Account_1`)
+### Step 2: First-Time Login & Save Cookies for `Account_1`
 Run the setup command for `Account_1`:
 
 ```cmd
 python uber_prices.py accounts setup --account Account_1
 ```
 
-1. A visible Chrome window opens loading `browser_profile_account1`.
-2. Enter your mobile phone number and complete the OTP / MFA verification manually on Uber's login screen.
+1. A visible Chrome browser opens loading `browser_profile_account1`.
+2. Enter your phone number on Uber's login screen and complete OTP / MFA verification manually.
 3. Once logged in and viewing the Uber home page (`https://m.uber.com/go/home`), return to your terminal and press `Enter`.
-4. All session cookies and login tokens are automatically persisted in `browser_profile_account1/`.
+4. Session cookies and authentication tokens are saved in `browser_profile_account1/`.
 
-### Step 3: Log In & Save Cookies for Different Accounts (`Account_2`, `Account_3`...)
+### Step 3: First-Time Login & Save Cookies for `Account_2` (and additional accounts)
 Repeat the setup step for each additional account:
 
 ```cmd
 python uber_prices.py accounts setup --account Account_2
 ```
 
-Complete the manual login in the opened browser window and press `Enter`. Its session cookies are stored separately in `browser_profile_account2/`.
+Complete manual login in the visible browser and press `Enter`. Its session cookies will be stored separately in `browser_profile_account2/`.
 
-### Step 4: Verify Saved Account Sessions
-Cross-check all account sessions to ensure cookie databases exist:
+### Step 4: Verify Account Session Cookies
+Cross-check all registered accounts to confirm session cookie databases exist:
 
 ```cmd
 python uber_prices.py accounts check
@@ -132,17 +167,17 @@ python uber_prices.py accounts check
 
 ---
 
-## 5. Account Rotation & Checking Last Used Account
+## 6. Account Rotation & Checking Last Used Account
 
-### Run Batch Extraction with Account Rotation
-Automatically rotates to the next active account in `data/accounts.csv`, loads its persistent profile and assigned proxy, and runs the batch routes:
+### Run Full Batch with Account Rotation (Recommended)
+Automatically selects the next active account in `data/accounts.csv`, loads its persistent browser profile & proxy, and runs all batch routes:
 
 ```cmd
 python uber_prices.py batch --rotate
 ```
 
-### Check Last Used Account & Status
-To view **which account was used last**, when it was rotated, how many routes were completed/remaining, and system RAM:
+### Check Last Used Account & System Status
+To view **which account was used last**, when it was rotated, completed/remaining routes, and system RAM:
 
 ```cmd
 python uber_prices.py status
@@ -170,11 +205,21 @@ Registered Accounts:
 ==================================================
 ```
 
+### Run Batch for a Specific Account
+```cmd
+python uber_prices.py batch --account Account_1
+```
+
+### Run Specific Route IDs Only
+```cmd
+python uber_prices.py batch --rotate --only 1,2,13
+```
+
 ---
 
-## 6. Managing Proxies Per Account
+## 7. Managing Proxies Per Account
 
-You can assign HTTP or SOCKS5 proxies per account in `data/accounts.csv`:
+Assign HTTP, SOCKS5, or authenticated proxies per account in `data/accounts.csv`:
 
 ```cmd
 # Set HTTP or SOCKS5 proxy for Account_1
@@ -186,14 +231,14 @@ python uber_prices.py accounts set-proxy --account Account_1 --proxy direct
 
 ---
 
-## 7. Route Execution & Multi-Stop Commands
+## 8. Route Execution & Multi-Stop Commands
 
-### Extract Prices for a Single Route
+### Single Route Price Extraction
 ```cmd
 python uber_prices.py prices --pickup "Brickell City Centre" --destination "Kaseya Center"
 ```
 
-### Extract Prices for a Multi-Stop Route
+### Multi-Stop Route Price Extraction
 Supports 1 or more intermediate stops (`Pickup → Stop 1 → Stop 2 → Dropoff`):
 ```cmd
 # Direct URL method (default):
@@ -203,9 +248,14 @@ python uber_prices.py prices --pickup "Fontainebleau" --stops "Prime 112" "E11EV
 python uber_prices.py prices --pickup "Fontainebleau" --stops "Prime 112" "E11EVEN" --destination "Brickell" --method ui
 ```
 
+### Test Location Autocomplete Match
+```cmd
+python uber_prices.py locations --pickup "Fontainebleau" --stops "Prime 112" "E11EVEN" --destination "Brickell"
+```
+
 ---
 
-## 8. Tracking Execution Time & Memory Usage
+## 9. Tracking Execution Time & Memory Usage
 
 You can monitor runtime duration and memory usage in **4 places**:
 
@@ -236,7 +286,7 @@ You can monitor runtime duration and memory usage in **4 places**:
 
 ---
 
-## 9. Reference Account Configuration File
+## 10. Reference Account Configuration File
 
 A reference template is available at `data/accounts_example.csv`:
 
@@ -248,7 +298,7 @@ Account_2,+15559876543,browser_profile_account2,active,,"Mozilla/5.0 (Macintosh;
 
 ---
 
-## 10. Results & Output Data Formats
+## 11. Results & Data Formats
 
 ### `data/results.csv` Format
 Includes the `account` column identifying which mobile account extracted each price:
@@ -263,3 +313,25 @@ Multi-stop routes can be defined in `data/routes.csv` by listing pipe-separated 
 route_id,source,destination,category,stops
 13,Fontainebleau,Brickell,multi_stop,Prime 112|E11EVEN
 ```
+
+---
+
+## 12. CLI Command Summary
+
+| Command | Description |
+| :--- | :--- |
+| `python uber_prices.py status` | View last used account, last rotation time, completion progress, active accounts, and system RAM. |
+| `python uber_prices.py batch --rotate` | Run full batch extracting prices with automatic account rotation. |
+| `python uber_prices.py batch --account <Name>` | Run batch specifically using `<Name>` account without rotating. |
+| `python uber_prices.py accounts list` | List registered mobile accounts, user agents, proxies, and profile folders. |
+| `python uber_prices.py accounts setup --account <Name>` | Open visible browser to log in and save session cookies for an account. |
+| `python uber_prices.py accounts check` | Cross-check account session profile directories and cookie databases. |
+| `python uber_prices.py accounts set-proxy --account <Name> --proxy <ProxyURL>` | Set or clear proxy for a specific account. |
+| `python uber_prices.py prices --pickup ... --destination ...` | Extract prices for a single route (supports `--stops` and `--method ui`). |
+
+---
+
+## 13. Safety, Privacy & Terms
+
+* **Confidentiality:** Never commit `browser_profile_account*`, `data/accounts.csv`, `data/results.csv`, or `data/results/` to source control.
+* **Terms of Service:** This repository is for educational and research purposes. Users assume all risk associated with automated web interaction.
