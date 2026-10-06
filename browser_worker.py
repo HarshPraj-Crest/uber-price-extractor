@@ -66,7 +66,7 @@ def parse_proxy(proxy: str | dict | None) -> dict[str, str] | None:
     if isinstance(proxy, dict):
         return proxy
     proxy_str = str(proxy).strip()
-    if not proxy_str:
+    if not proxy_str or proxy_str.lower() in ("direct", "none", "null", "no"):
         return None
 
     scheme = "http"
@@ -101,6 +101,7 @@ class BrowserConfig:
     viewport: dict[str, int] | None = None
     extra_http_headers: dict[str, str] | None = None
     proxy: str | dict | None = None
+    storage_state: Path | str | None = None
 
 
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
@@ -133,6 +134,8 @@ class PlaywrightWorker:
         self.playwright = self._playwright_cm.__enter__()
         try:
             self.context = self._launch()
+            if self.config.storage_state and Path(self.config.storage_state).exists():
+                self._apply_storage_state(self.context, Path(self.config.storage_state))
             self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
         except PlaywrightError as exc:
             self.close()
@@ -188,9 +191,36 @@ class PlaywrightWorker:
                 f"The default profile ({cfg.profile_dir}) is a Chrome profile holding the Uber login; "
                 f"{cfg.engine} must not open it. Pass --profile-dir with a separate folder for {cfg.engine} "
                 "(you would then log in there manually with `open`).")
-        if not Path(cfg.profile_dir).exists() and not uses_default:
-            raise ValueError(f"Profile folder {cfg.profile_dir} does not exist. Create it yourself if you "
-                             "intend to start a new profile (it is never created automatically).")
+        if not Path(cfg.profile_dir).exists():
+            if cfg.storage_state and Path(cfg.storage_state).exists():
+                Path(cfg.profile_dir).mkdir(parents=True, exist_ok=True)
+            elif not uses_default:
+                raise ValueError(f"Profile folder {cfg.profile_dir} does not exist. Create it yourself if you "
+                                 "intend to start a new profile (it is never created automatically).")
+
+    def _apply_storage_state(self, context: BrowserContext, state_path: Path) -> None:
+        import json
+        try:
+            data = json.loads(state_path.read_text(encoding="utf-8"))
+            cookies = data.get("cookies", [])
+            if cookies:
+                context.add_cookies(cookies)
+            for origin_item in data.get("origins", []):
+                origin = origin_item.get("origin")
+                ls_items = origin_item.get("localStorage", [])
+                if ls_items and origin:
+                    pairs = ", ".join(f"{json.dumps(item['name'])}: {json.dumps(item['value'])}" for item in ls_items if "name" in item and "value" in item)
+                    script = f"""(() => {{
+                        if (window.location.origin === {json.dumps(origin)}) {{
+                            const items = {{{pairs}}};
+                            for (const [k, v] of Object.entries(items)) {{
+                                try {{ localStorage.setItem(k, v); }} catch(e) {{}}
+                            }}
+                        }}
+                    }})();"""
+                    context.add_init_script(script)
+        except Exception as exc:
+            print(f"[warn] Could not load storage_state from {state_path}: {exc}")
 
     def _launch(self) -> BrowserContext:
         cfg = self.config
@@ -198,10 +228,12 @@ class PlaywrightWorker:
             user_data_dir=str(cfg.profile_dir),
             headless=cfg.headless,
         )
+
         if cfg.viewport is not None:
             options["viewport"] = cfg.viewport
         else:
             options["no_viewport"] = True
+
 
         ua_to_use = cfg.user_agent or DEFAULT_USER_AGENT
         options["user_agent"] = ua_to_use
