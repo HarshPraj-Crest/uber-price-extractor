@@ -1,87 +1,556 @@
 {
-  "_comment": "Place mapping for the batch. WHICH routes run now comes from data/routes.csv; the 'routes' list below is kept only as a reference (it is the only record of the 5 multi-stop routes) and is not read by the batch. 'locations' maps each route label to the exact Uber suggestion to select: 'name' must equal the suggestion's name (case/punctuation-insensitive) and every 'address' entry must appear as whole words in its address. Mappings verified against Uber's live suggestions on 2026-09-30 (Design District and Setai updated 13:30 after Uber's suggestions changed). 'region' is a safety net: every selected place's coordinates (from Uber's page state) must be inside it.",
+  "_comment": "Place mapping for the batch. WHICH routes run comes from data/routes.csv. Each label maps to ONE exact Uber place: 'name' (or one of 'aliases') must equal the suggestion's name exactly (case/punctuation-insensitive); every 'address' hint must appear as whole words in its address and no 'address_not' word may; addresses are compared with US abbreviations normalised (Avenue=Ave, Northeast=NE, Boulevard=Blvd ...), so one entry matches both Uber's Google-style list ('South Miami Avenue, Miami, FL, USA') and its own list ('701 S Miami Ave, Miami, FL'). 'query' (optional) is the text typed, default 'name'. City/area labels (Miami, Homestead, ...) only exist in the Google-style list. 'region' is a safety net on the selected coordinates. The 'routes' list below is reference only.",
   "region": {
     "name": "South Florida",
-    "min_lat": 25.2, "max_lat": 27.0,
-    "min_lng": -80.9, "max_lng": -79.9
+    "min_lat": 25.2,
+    "max_lat": 27.0,
+    "min_lng": -80.9,
+    "max_lng": -79.9
   },
   "locations": {
-    "Brickell City Centre":          {"name": "Brickell City Centre", "address": ["South Miami Avenue", "FL"]},
-    "Kaseya Center":                 {"name": "Kaseya Center", "address": ["Biscayne Boulevard", "FL"]},
-    "Fontainebleau Miami Beach":     {"name": "Fontainebleau Miami Beach", "address": ["Collins Avenue", "FL"]},
-    "Fontainebleau":                 {"name": "Fontainebleau Miami Beach", "address": ["Collins Avenue", "FL"]},
-    "LIV Nightclub":                 {"name": "LIV Nightclub Miami", "address": ["FL"]},
-    "Prime 112":                     {"name": "Prime 112 Restaurant", "address": ["FL"]},
-    "Papi Steak":                    {"name": "Papi Steak Miami Beach", "address": ["FL"]},
-    "E11EVEN Miami":                 {"name": "E11EVEN MIAMI", "address": ["FL"]},
-    "E11EVEN":                       {"name": "E11EVEN MIAMI", "address": ["FL"]},
-    "Design District":               {"name": "Miami Design District", "address": ["Northeast 1st Avenue", "FL"]},
-    "Wynwood Walls":                 {"name": "Wynwood Walls", "address": ["FL"]},
-    "Setai Miami Beach":             {"name": "The Setai", "address": ["Collins Avenue", "Miami Beach", "FL"]},
-    "South Beach":                   {"name": "South Beach", "address": ["Miami Beach", "FL"]},
-    "AC Hotel Miami Beach":          {"name": "AC Hotel Miami Beach", "address": ["FL"]},
-    "Playa Miami":                   {"name": "Playa Miami Beach", "address": ["FL"]},
-    "Victory Restaurant & Lounge":   {"name": "Victory Restaurant & Lounge", "address": ["FL"]},
-    "Victory Restaurant":            {"name": "Victory Restaurant & Lounge", "address": ["FL"]},
-    "Victory":                       {"name": "Victory Restaurant & Lounge", "address": ["FL"]},
-    "Bal Harbour":                   {"name": "Bal Harbour", "address": ["FL"]},
-    "Bal Harbour Shops":             {"name": "Bal Harbour Shops", "address": ["96th Street", "FL"]},
-    "Taboo Miami":                   {"name": "Taboo Miami by G5ive", "address": ["FL"]},
-    "Taboo":                         {"name": "Taboo Miami by G5ive", "address": ["FL"]},
-    "Coconut Grove":                 {"name": "Coconut Grove", "address": ["Miami", "FL"]},
-    "Tootsie's Cabaret":             {"name": "Tootsie's Cabaret Miami", "address": ["FL"]},
-    "Tootsie's":                     {"name": "Tootsie's Cabaret Miami", "address": ["FL"]},
-    "Booby Trap on the River":       {"name": "Booby Trap on the River", "address": ["FL"]},
-    "Aventura Mall":                 {"name": "Aventura Mall", "address": ["Biscayne Boulevard", "FL"]},
-    "Hard Rock Casino":              {"name": "Seminole Hard Rock Hotel & Casino", "address": ["Seminole Way", "FL"]},
-    "Miami International Airport":   {"name": "Miami International Airport (MIA)", "address": ["FL"]},
-    "MIA Airport":                   {"name": "Miami International Airport (MIA)", "address": ["FL"]},
-    "Fort Lauderdale Airport (FLL)": {"name": "Fort Lauderdale-Hollywood International Airport (FLL)", "address": ["FL"]},
-    "Brickell":                      {"name": "Brickell City Centre", "aliases": ["Brickell", "Brickell City Center", "Brickell Station"], "address": ["Miami", "FL"]},
-    "Downtown Miami":                {"name": "Downtown Miami", "address": ["Miami", "FL"]},
-    "Miami":                         {"name": "Miami", "address": ["FL"]},
-    "Miami Beach":                   {"name": "Miami Beach", "address": ["FL"]},
-    "Fort Lauderdale":               {"name": "Fort Lauderdale", "address": ["FL"]},
-    "Homestead":                     {"name": "Homestead", "address": ["FL"]},
-    "Boca Raton":                    {"name": "Boca Raton", "address": ["FL"]},
-    "West Palm Beach":               {"name": "West Palm Beach", "address": ["FL"]},
-    "Davie":                         {"name": "Davie", "address": ["FL"]}
+    "Brickell City Centre": {
+      "name": "Brickell City Centre",
+      "address": [
+        "S Miami Ave",
+        "FL"
+      ]
+    },
+    "Kaseya Center": {
+      "name": "Kaseya Center",
+      "address": [
+        "Biscayne Blvd",
+        "FL"
+      ]
+    },
+    "Fontainebleau Miami Beach": {
+      "name": "Fontainebleau Miami Beach",
+      "address": [
+        "Collins Ave",
+        "Miami Beach",
+        "FL"
+      ]
+    },
+    "Fontainebleau": {
+      "name": "Fontainebleau Miami Beach",
+      "address": [
+        "Collins Ave",
+        "Miami Beach",
+        "FL"
+      ]
+    },
+    "LIV Nightclub": {
+      "name": "LIV Nightclub Miami",
+      "aliases": [
+        "LIV Nightclub"
+      ],
+      "address": [
+        "Collins Ave",
+        "Miami Beach",
+        "FL"
+      ]
+    },
+    "Prime 112": {
+      "name": "Prime 112 Restaurant",
+      "aliases": [
+        "Prime 112"
+      ],
+      "address": [
+        "Ocean Dr",
+        "Miami Beach",
+        "FL"
+      ]
+    },
+    "Papi Steak": {
+      "name": "Papi Steak Miami Beach",
+      "aliases": [
+        "Papi Steak"
+      ],
+      "address": [
+        "1st St",
+        "Miami Beach",
+        "FL"
+      ]
+    },
+    "E11EVEN Miami": {
+      "name": "E11EVEN Miami",
+      "address": [
+        "NE 11th St",
+        "FL"
+      ]
+    },
+    "E11EVEN": {
+      "name": "E11EVEN Miami",
+      "address": [
+        "NE 11th St",
+        "FL"
+      ]
+    },
+    "Design District": {
+      "name": "Miami Design District",
+      "address": [
+        "NE 1st Ave",
+        "FL"
+      ]
+    },
+    "Wynwood Walls": {
+      "name": "Wynwood Walls",
+      "address": [
+        "NW 2nd Ave",
+        "FL"
+      ]
+    },
+    "Setai Miami Beach": {
+      "name": "The Setai",
+      "aliases": [
+        "The Setai, Miami Beach"
+      ],
+      "address": [
+        "Collins Ave",
+        "Miami Beach",
+        "FL"
+      ]
+    },
+    "South Beach": {
+      "name": "South Beach",
+      "address": [
+        "Miami Beach",
+        "FL"
+      ],
+      "address_not": [
+        "Collins Ave"
+      ]
+    },
+    "AC Hotel Miami Beach": {
+      "name": "AC Hotel Miami Beach",
+      "address": [
+        "Collins Ave",
+        "Miami Beach",
+        "FL"
+      ]
+    },
+    "Playa Miami": {
+      "name": "Playa Miami Beach",
+      "aliases": [
+        "Miami Beach Playa"
+      ],
+      "address": [
+        "Ocean Dr",
+        "Miami Beach",
+        "FL"
+      ]
+    },
+    "Victory Restaurant & Lounge": {
+      "name": "Victory Restaurant & Lounge",
+      "address": [
+        "NE 1st Ave",
+        "FL"
+      ]
+    },
+    "Victory Restaurant": {
+      "name": "Victory Restaurant & Lounge",
+      "address": [
+        "NE 1st Ave",
+        "FL"
+      ]
+    },
+    "Victory": {
+      "name": "Victory Restaurant & Lounge",
+      "address": [
+        "NE 1st Ave",
+        "FL"
+      ]
+    },
+    "Bal Harbour": {
+      "name": "Bal Harbour",
+      "address": [
+        "FL"
+      ]
+    },
+    "Bal Harbour Shops": {
+      "name": "Bal Harbour Shops",
+      "address": [
+        "Bal Harbour",
+        "FL"
+      ]
+    },
+    "Taboo Miami": {
+      "name": "Taboo Miami by G5ive",
+      "aliases": [
+        "Taboo Miami"
+      ],
+      "address": [
+        "NW 170th St",
+        "FL"
+      ]
+    },
+    "Taboo": {
+      "name": "Taboo Miami by G5ive",
+      "aliases": [
+        "Taboo Miami"
+      ],
+      "address": [
+        "NW 170th St",
+        "FL"
+      ]
+    },
+    "Coconut Grove": {
+      "name": "Coconut Grove",
+      "address": [
+        "Miami",
+        "FL"
+      ]
+    },
+    "Tootsie's Cabaret": {
+      "name": "Tootsie's Cabaret Miami",
+      "aliases": [
+        "Tootsie's Cabaret"
+      ],
+      "address": [
+        "NW 183rd St",
+        "FL"
+      ]
+    },
+    "Tootsie's": {
+      "name": "Tootsie's Cabaret Miami",
+      "aliases": [
+        "Tootsie's Cabaret"
+      ],
+      "address": [
+        "NW 183rd St",
+        "FL"
+      ]
+    },
+    "Booby Trap on the River": {
+      "name": "Booby Trap on the River",
+      "address": [
+        "FL"
+      ]
+    },
+    "Aventura Mall": {
+      "name": "Aventura Mall",
+      "address": [
+        "Biscayne Blvd",
+        "FL"
+      ]
+    },
+    "Hard Rock Casino": {
+      "name": "Seminole Hard Rock Hotel & Casino",
+      "aliases": [
+        "Seminole Hard Rock Hotel & Casino Hollywood, FL"
+      ],
+      "address": [
+        "Seminole Way",
+        "FL"
+      ]
+    },
+    "Miami International Airport": {
+      "name": "Miami International Airport (MIA)",
+      "address": [
+        "NW 42nd Ave",
+        "FL"
+      ]
+    },
+    "MIA Airport": {
+      "name": "Miami International Airport (MIA)",
+      "address": [
+        "NW 42nd Ave",
+        "FL"
+      ]
+    },
+    "Fort Lauderdale Airport (FLL)": {
+      "name": "Fort Lauderdale-Hollywood International Airport (FLL)",
+      "query": "Fort Lauderdale",
+      "address": [
+        "Terminal Dr",
+        "FL"
+      ]
+    },
+    "Brickell": {
+      "name": "Brickell City Centre",
+      "address": [
+        "S Miami Ave",
+        "FL"
+      ]
+    },
+    "Downtown Miami": {
+      "name": "Downtown Miami",
+      "address": [
+        "Miami",
+        "FL"
+      ]
+    },
+    "Miami": {
+      "name": "Miami",
+      "address": [
+        "FL"
+      ]
+    },
+    "Miami Beach": {
+      "name": "Miami Beach",
+      "address": [
+        "FL"
+      ]
+    },
+    "Fort Lauderdale": {
+      "name": "Fort Lauderdale",
+      "address": [
+        "FL"
+      ]
+    },
+    "Homestead": {
+      "name": "Homestead",
+      "address": [
+        "FL"
+      ]
+    },
+    "Boca Raton": {
+      "name": "Boca Raton",
+      "address": [
+        "FL"
+      ]
+    },
+    "West Palm Beach": {
+      "name": "West Palm Beach",
+      "address": [
+        "FL"
+      ]
+    },
+    "Davie": {
+      "name": "Davie",
+      "address": [
+        "FL"
+      ]
+    }
   },
   "routes": [
-    {"id": 1,  "category": "short", "pickup": "Brickell City Centre", "destination": "Kaseya Center"},
-    {"id": 2,  "category": "short", "pickup": "Fontainebleau Miami Beach", "destination": "LIV Nightclub"},
-    {"id": 3,  "category": "short", "pickup": "Prime 112", "destination": "Papi Steak"},
-    {"id": 4,  "category": "short", "pickup": "E11EVEN Miami", "destination": "Kaseya Center"},
-    {"id": 5,  "category": "short", "pickup": "Design District", "destination": "Wynwood Walls"},
-    {"id": 6,  "category": "short", "pickup": "Setai Miami Beach", "destination": "Prime 112"},
-    {"id": 7,  "category": "short", "pickup": "South Beach", "destination": "AC Hotel Miami Beach"},
-    {"id": 8,  "category": "short", "pickup": "Playa Miami", "destination": "Victory Restaurant & Lounge"},
-    {"id": 9,  "category": "long", "pickup": "Bal Harbour", "destination": "Brickell City Centre"},
-    {"id": 10, "category": "long", "pickup": "Fontainebleau Miami Beach", "destination": "Taboo Miami"},
-    {"id": 11, "category": "long", "pickup": "Coconut Grove", "destination": "Tootsie's Cabaret"},
-    {"id": 12, "category": "long", "pickup": "South Beach", "destination": "Hard Rock Casino"},
-    {"id": 13, "category": "multi_stop", "pickup": "Fontainebleau", "destination": "Brickell", "stops": ["Prime 112", "E11EVEN"]},
-    {"id": 14, "category": "multi_stop", "pickup": "Bal Harbour", "destination": "South Beach", "stops": ["Design District", "Victory"]},
-    {"id": 15, "category": "multi_stop", "pickup": "MIA Airport", "destination": "Fontainebleau", "stops": ["Brickell", "Prime 112"]},
-    {"id": 16, "category": "multi_stop", "pickup": "Aventura Mall", "destination": "Prime 112", "stops": ["Bal Harbour Shops", "Playa Miami"]},
-    {"id": 17, "category": "multi_stop", "pickup": "Tootsie's", "destination": "Booby Trap on the River", "stops": ["Taboo"]},
-    {"id": 18, "category": "airport_pickup", "pickup": "Miami International Airport", "destination": "Brickell"},
-    {"id": 19, "category": "airport_pickup", "pickup": "Miami International Airport", "destination": "Design District"},
-    {"id": 20, "category": "airport_pickup", "pickup": "Miami International Airport", "destination": "Fontainebleau Miami Beach"},
-    {"id": 21, "category": "airport_pickup", "pickup": "Miami International Airport", "destination": "South Beach"},
-    {"id": 22, "category": "airport_pickup", "pickup": "Fort Lauderdale Airport (FLL)", "destination": "Brickell"},
-    {"id": 23, "category": "airport_dropoff", "pickup": "Victory Restaurant", "destination": "Miami International Airport"},
-    {"id": 24, "category": "airport_dropoff", "pickup": "Brickell City Centre", "destination": "Miami International Airport"},
-    {"id": 25, "category": "airport_dropoff", "pickup": "Fontainebleau", "destination": "Miami International Airport"},
-    {"id": 26, "category": "airport_dropoff", "pickup": "Bal Harbour Shops", "destination": "Miami International Airport"},
-    {"id": 27, "category": "outbound", "pickup": "South Beach", "destination": "Fort Lauderdale"},
-    {"id": 28, "category": "outbound", "pickup": "Miami Beach", "destination": "Homestead"},
-    {"id": 29, "category": "outbound", "pickup": "Brickell", "destination": "Boca Raton"},
-    {"id": 30, "category": "outbound", "pickup": "Miami", "destination": "West Palm Beach"},
-    {"id": 31, "category": "inbound", "pickup": "Davie", "destination": "Miami"},
-    {"id": 32, "category": "inbound", "pickup": "Fort Lauderdale", "destination": "South Beach"},
-    {"id": 33, "category": "inbound", "pickup": "Homestead", "destination": "Downtown Miami"},
-    {"id": 34, "category": "inbound", "pickup": "Boca Raton", "destination": "Brickell"},
-    {"id": 35, "category": "inbound", "pickup": "West Palm Beach", "destination": "Miami"}
+    {
+      "id": 1,
+      "category": "short",
+      "pickup": "Brickell City Centre",
+      "destination": "Kaseya Center"
+    },
+    {
+      "id": 2,
+      "category": "short",
+      "pickup": "Fontainebleau Miami Beach",
+      "destination": "LIV Nightclub"
+    },
+    {
+      "id": 3,
+      "category": "short",
+      "pickup": "Prime 112",
+      "destination": "Papi Steak"
+    },
+    {
+      "id": 4,
+      "category": "short",
+      "pickup": "E11EVEN Miami",
+      "destination": "Kaseya Center"
+    },
+    {
+      "id": 5,
+      "category": "short",
+      "pickup": "Design District",
+      "destination": "Wynwood Walls"
+    },
+    {
+      "id": 6,
+      "category": "short",
+      "pickup": "Setai Miami Beach",
+      "destination": "Prime 112"
+    },
+    {
+      "id": 7,
+      "category": "short",
+      "pickup": "South Beach",
+      "destination": "AC Hotel Miami Beach"
+    },
+    {
+      "id": 8,
+      "category": "short",
+      "pickup": "Playa Miami",
+      "destination": "Victory Restaurant & Lounge"
+    },
+    {
+      "id": 9,
+      "category": "long",
+      "pickup": "Bal Harbour",
+      "destination": "Brickell City Centre"
+    },
+    {
+      "id": 10,
+      "category": "long",
+      "pickup": "Fontainebleau Miami Beach",
+      "destination": "Taboo Miami"
+    },
+    {
+      "id": 11,
+      "category": "long",
+      "pickup": "Coconut Grove",
+      "destination": "Tootsie's Cabaret"
+    },
+    {
+      "id": 12,
+      "category": "long",
+      "pickup": "South Beach",
+      "destination": "Hard Rock Casino"
+    },
+    {
+      "id": 13,
+      "category": "multi_stop",
+      "pickup": "Fontainebleau",
+      "destination": "Brickell",
+      "stops": [
+        "Prime 112",
+        "E11EVEN"
+      ]
+    },
+    {
+      "id": 14,
+      "category": "multi_stop",
+      "pickup": "Bal Harbour",
+      "destination": "South Beach",
+      "stops": [
+        "Design District",
+        "Victory"
+      ]
+    },
+    {
+      "id": 15,
+      "category": "multi_stop",
+      "pickup": "MIA Airport",
+      "destination": "Fontainebleau",
+      "stops": [
+        "Brickell",
+        "Prime 112"
+      ]
+    },
+    {
+      "id": 16,
+      "category": "multi_stop",
+      "pickup": "Aventura Mall",
+      "destination": "Prime 112",
+      "stops": [
+        "Bal Harbour Shops",
+        "Playa Miami"
+      ]
+    },
+    {
+      "id": 17,
+      "category": "multi_stop",
+      "pickup": "Tootsie's",
+      "destination": "Booby Trap on the River",
+      "stops": [
+        "Taboo"
+      ]
+    },
+    {
+      "id": 18,
+      "category": "airport_pickup",
+      "pickup": "Miami International Airport",
+      "destination": "Brickell"
+    },
+    {
+      "id": 19,
+      "category": "airport_pickup",
+      "pickup": "Miami International Airport",
+      "destination": "Design District"
+    },
+    {
+      "id": 20,
+      "category": "airport_pickup",
+      "pickup": "Miami International Airport",
+      "destination": "Fontainebleau Miami Beach"
+    },
+    {
+      "id": 21,
+      "category": "airport_pickup",
+      "pickup": "Miami International Airport",
+      "destination": "South Beach"
+    },
+    {
+      "id": 22,
+      "category": "airport_pickup",
+      "pickup": "Fort Lauderdale Airport (FLL)",
+      "destination": "Brickell"
+    },
+    {
+      "id": 23,
+      "category": "airport_dropoff",
+      "pickup": "Victory Restaurant",
+      "destination": "Miami International Airport"
+    },
+    {
+      "id": 24,
+      "category": "airport_dropoff",
+      "pickup": "Brickell City Centre",
+      "destination": "Miami International Airport"
+    },
+    {
+      "id": 25,
+      "category": "airport_dropoff",
+      "pickup": "Fontainebleau",
+      "destination": "Miami International Airport"
+    },
+    {
+      "id": 26,
+      "category": "airport_dropoff",
+      "pickup": "Bal Harbour Shops",
+      "destination": "Miami International Airport"
+    },
+    {
+      "id": 27,
+      "category": "outbound",
+      "pickup": "South Beach",
+      "destination": "Fort Lauderdale"
+    },
+    {
+      "id": 28,
+      "category": "outbound",
+      "pickup": "Miami Beach",
+      "destination": "Homestead"
+    },
+    {
+      "id": 29,
+      "category": "outbound",
+      "pickup": "Brickell",
+      "destination": "Boca Raton"
+    },
+    {
+      "id": 30,
+      "category": "outbound",
+      "pickup": "Miami",
+      "destination": "West Palm Beach"
+    },
+    {
+      "id": 31,
+      "category": "inbound",
+      "pickup": "Davie",
+      "destination": "Miami"
+    },
+    {
+      "id": 32,
+      "category": "inbound",
+      "pickup": "Fort Lauderdale",
+      "destination": "South Beach"
+    },
+    {
+      "id": 33,
+      "category": "inbound",
+      "pickup": "Homestead",
+      "destination": "Downtown Miami"
+    },
+    {
+      "id": 34,
+      "category": "inbound",
+      "pickup": "Boca Raton",
+      "destination": "Brickell"
+    },
+    {
+      "id": 35,
+      "category": "inbound",
+      "pickup": "West Palm Beach",
+      "destination": "Miami"
+    }
   ]
 }

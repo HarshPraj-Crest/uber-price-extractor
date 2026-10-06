@@ -28,6 +28,8 @@ data/accounts.csv
 *.pfx
 cookies*.json
 storage_state*.json
+# Exported Uber login sessions (uber_session_manager.py export): live account access.
+saved_sessions/
 auth*.json
 secrets*.json
 credentials*.json
