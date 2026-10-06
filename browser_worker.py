@@ -59,6 +59,7 @@ def parse_proxy(proxy: str | dict | None) -> dict[str, str] | None:
     """
     Parse HTTP/SOCKS5 proxy strings or dicts into Playwright's expected proxy format:
     {"server": "http://ip:port", "username": "...", "password": "..."} or {"server": "socks5://ip:port"}
+    Handles usernames with '@' (e.g. email addresses like user@domain.com).
     """
     if not proxy:
         return None
@@ -68,35 +69,24 @@ def parse_proxy(proxy: str | dict | None) -> dict[str, str] | None:
     if not proxy_str:
         return None
 
-    # Handle standard URLs like http://user:pass@host:port or socks5://user:pass@host:port
-    from urllib.parse import urlparse
-    parsed = urlparse(proxy_str)
-    if parsed.scheme:
-        scheme = parsed.scheme
-        hostname = parsed.hostname or ""
-        port = f":{parsed.port}" if parsed.port else ""
-        server_url = f"{scheme}://{hostname}{port}"
-        res = {"server": server_url}
-        if parsed.username:
-            res["username"] = parsed.username
-        if parsed.password:
-            res["password"] = parsed.password
-        return res
+    scheme = "http"
+    rest = proxy_str
+    if "://" in proxy_str:
+        scheme, rest = proxy_str.split("://", 1)
 
-    # Handle user:pass@host:port without scheme (defaults to http)
-    if "@" in proxy_str:
-        auth, server = proxy_str.rsplit("@", 1)
-        res = {"server": f"http://{server}"}
+    if "@" in rest:
+        # Split on the LAST '@' so usernames with '@' (emails) are parsed cleanly
+        auth, server_host = rest.rsplit("@", 1)
+        res = {"server": f"{scheme}://{server_host}"}
         if ":" in auth:
-            u, p = auth.split(":", 1)
-            res["username"] = u
-            res["password"] = p
+            parts = auth.split(":")
+            res["username"] = parts[0]
+            res["password"] = ":".join(parts[1:])
         else:
             res["username"] = auth
         return res
 
-    # Plain host:port or ip:port (defaults to http)
-    return {"server": f"http://{proxy_str}"}
+    return {"server": f"{scheme}://{rest}"}
 
 
 @dataclass

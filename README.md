@@ -57,7 +57,7 @@ This project automates the sequential extraction of ride prices (e.g., UberX, Ub
               v
 +-----------------------------------------------------------------------------------+
 | Output & Tracking Persistence:                                                    |
-|  - Append result rows (including `account` name) to data/results.csv              |
+|  - Append result rows to day/slot CSVs (e.g., data/results/YYYY-MM-DD/slot_<N>.csv)|
 |  - Real-time status update in data/rotation_state.json                            |
 |  - Write JSON data & performance files in data/results/                           |
 +-----------------------------------------------------------------------------------+
@@ -79,8 +79,7 @@ uber-price-extractor/
 │   ├── accounts.csv               # Active mobile accounts, user-agents, proxies, and profile folders
 │   ├── accounts_example.csv       # [Reference Template] Example accounts CSV configuration file
 │   ├── rotation_state.json        # [Generated] Live rotation & batch progress state tracking file
-│   ├── results.csv                # [Generated / Git-ignored] Cumulative CSV containing extracted prices & account info
-│   ├── results/                   # [Generated / Git-ignored] Per-batch JSON results and performance files
+│   ├── results/                   # [Generated / Git-ignored] Day-wise subdirectories (e.g. YYYY-MM-DD/slot_7.csv) & JSON files
 │   └── screenshots/               # [Generated / Git-ignored] Failure & diagnostic screenshots
 └── browser_profile_account*/      # [Generated / Confidential / Git-ignored] Persistent Chrome account session profiles
 ```

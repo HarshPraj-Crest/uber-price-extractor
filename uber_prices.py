@@ -62,6 +62,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -81,13 +82,6 @@ REALISTIC_USER_AGENTS = [
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-]
-
-DEFAULT_ACCOUNTS = [
-    {"account_name": "Account_1", "phone_number": "+10000000001", "profile_dir": "browser_profile_account1", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[0], "proxy": "", "notes": "Primary account (Win Chrome 154)"},
-    {"account_name": "Account_2", "phone_number": "+10000000002", "profile_dir": "browser_profile_account2", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[3], "proxy": "", "notes": "Secondary account (Mac Chrome 154)"},
-    {"account_name": "Account_3", "phone_number": "+10000000003", "profile_dir": "browser_profile_account3", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[6], "proxy": "", "notes": "Backup account 1 (Linux Chrome 154)"},
-    {"account_name": "Account_4", "phone_number": "+10000000004", "profile_dir": "browser_profile_account4", "status": "active", "last_used": "", "user_agent": REALISTIC_USER_AGENTS[1], "proxy": "", "notes": "Backup account 2 (Win Chrome 131)"},
 ]
 
 
@@ -116,14 +110,13 @@ def load_accounts(csv_path: Path | None = None) -> list[dict]:
     path = csv_path or ACCOUNTS_CSV
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
-        save_accounts(DEFAULT_ACCOUNTS, path)
-        return [dict(a) for a in DEFAULT_ACCOUNTS]
+        save_accounts([], path)
+        return []
     with path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         accounts = [row for row in reader if row.get("account_name")]
     if not accounts:
-        save_accounts(DEFAULT_ACCOUNTS, path)
-        return [dict(a) for a in DEFAULT_ACCOUNTS]
+        return []
     
     # Auto-assign missing fields (user_agent, proxy)
     updated = False
@@ -167,7 +160,7 @@ def update_account_status(identifier: str, status: str, notes: str | None = None
     for acc in accounts:
         if acc.get("account_name", "").strip().lower() == ident_clean or acc.get("phone_number", "").strip().lower() == ident_clean:
             acc["status"] = status
-            acc["last_used"] = datetime.now().isoformat(timespec="seconds")
+            acc["last_used"] = get_eastern_datetime().isoformat(timespec="seconds")
             if notes is not None:
                 acc["notes"] = notes
             target = acc
@@ -198,7 +191,7 @@ def save_rotation_state(account_name: str, batch_id: str | None = None,
     ROTATION_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     state = load_rotation_state()
     state["last_account"] = account_name
-    state["last_rotated_at"] = datetime.now().isoformat(timespec="seconds")
+    state["last_rotated_at"] = get_eastern_datetime().isoformat(timespec="seconds")
     if batch_id:
         state["last_batch_id"] = batch_id
     state["completed_routes"] = completed
@@ -1304,14 +1297,43 @@ def cmd_accounts(args: argparse.Namespace) -> int:
         ua = args.user_agent or random.choice(REALISTIC_USER_AGENTS)
         proxy_val = getattr(args, "proxy", "") or ""
         accounts = load_accounts()
-        if any(a.get("account_name", "").lower() == name.lower() for a in accounts):
-            print(f"[error] Account '{name}' already exists.")
-            return 1
+        existing = next((a for a in accounts if a.get("account_name", "").lower() == name.lower()), None)
+        if existing:
+            existing["phone_number"] = phone
+            if args.profile_dir:
+                existing["profile_dir"] = prof
+            if args.user_agent:
+                existing["user_agent"] = ua
+            if getattr(args, "proxy", None) is not None:
+                existing["proxy"] = proxy_val
+            if args.notes:
+                existing["notes"] = args.notes
+            save_accounts(accounts)
+            proxy_msg = f", Proxy: {existing.get('proxy')}" if existing.get('proxy') else ""
+            print(f"[ok] Updated account '{name}' ({phone}) -> {existing.get('profile_dir')}/ [User-Agent: {existing.get('user_agent', '')[:30]}...{proxy_msg}]")
+            return 0
         new_acc = {"account_name": name, "phone_number": phone, "profile_dir": prof, "status": "active", "last_used": "", "user_agent": ua, "proxy": proxy_val, "notes": args.notes or ""}
         accounts.append(new_acc)
         save_accounts(accounts)
         proxy_msg = f", Proxy: {proxy_val}" if proxy_val else ""
         print(f"[ok] Registered account '{name}' ({phone}) -> {prof}/ [User-Agent: {ua[:30]}...{proxy_msg}]")
+        return 0
+    elif sub == "set-phone":
+        identifier = args.account
+        phone_val = args.phone.strip()
+        accounts = load_accounts()
+        target = None
+        ident_clean = identifier.strip().lower()
+        for acc in accounts:
+            if acc.get("account_name", "").strip().lower() == ident_clean or acc.get("phone_number", "").strip().lower() == ident_clean:
+                acc["phone_number"] = phone_val
+                target = acc
+                break
+        if not target:
+            print(f"[error] Account '{identifier}' not found.")
+            return 1
+        save_accounts(accounts)
+        print(f"[ok] Updated phone number for account '{target['account_name']}': {phone_val}")
         return 0
     elif sub == "set-proxy":
         identifier = args.account
@@ -1847,7 +1869,7 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None,
         "stops_labels": route.get("stops", []),
         "destination_label": route["destination"],
         "status": None, "reason": None, "failed_phase": None,
-        "started_at": datetime.now().isoformat(timespec="seconds"), "ended_at": None,
+        "started_at": get_eastern_datetime().isoformat(timespec="seconds"), "ended_at": None,
         "timings": {}, "location_breakdown": {}, "prices_count": 0, "result": None, "screenshot": None,
     }
     stops_labels = route.get("stops", [])
@@ -1898,7 +1920,7 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None,
 
         phase = "price_extraction"
         with timer.phase("price_extraction"):
-            fetched_at = datetime.now()
+            fetched_at = get_eastern_datetime()
             rides, priced_rows = extract_rides_stable(page)
             validate_rides(rides, priced_rows)
 
@@ -1913,7 +1935,7 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None,
         if not page.is_closed():
             rec["screenshot"] = str(save_screenshot(page, f"batch-route{route['id']:02d}-{rec['status'].lower()}"))
     rec["timings"] = {**timer.timings, "total": round(time.perf_counter() - start, 2)}
-    rec["ended_at"] = datetime.now().isoformat(timespec="seconds")
+    rec["ended_at"] = get_eastern_datetime().isoformat(timespec="seconds")
     return rec
 
 
@@ -2042,6 +2064,62 @@ RESULTS_CSV_FIELDS = [
 ]
 
 
+EASTERN_TZ = ZoneInfo("America/New_York")
+
+# Platform slots in Eastern Time (America/New_York):
+# Slot 1: 6 AM  (06:00 ET)
+# Slot 2: 10 AM (10:00 ET)
+# Slot 3: 12 PM (12:00 ET)
+# Slot 4: 2 PM  (14:00 ET)
+# Slot 5: 5 PM  (17:00 ET)
+# Slot 6: 10 PM (22:00 ET)
+# Slot 7: 12 AM (00:00 ET)
+EASTERN_SLOT_HOURS = [6, 10, 12, 14, 17, 22, 0]
+
+
+def get_eastern_datetime() -> datetime:
+    """Get current datetime explicitly in Eastern Time (America/New_York), automatically handling EST/EDT transitions."""
+    return datetime.now(EASTERN_TZ)
+
+
+def get_slot_name(slot_arg: str | int | None = None, dt: datetime | None = None) -> str:
+    """
+    Format slot name (e.g. slot_1, slot_7).
+    If user passed a slot value (e.g. 1, 7, "slot_1"), normalize it.
+    If omitted, auto-determine nearest platform slot index (1 to 7) based on current Eastern Time.
+    """
+    if slot_arg is not None and str(slot_arg).strip():
+        s = str(slot_arg).strip()
+        s_clean = re.sub(r'[\s\-]+', '_', s)
+        if not re.search(r'slot', s_clean, re.IGNORECASE):
+            s_clean = f"slot_{s_clean}"
+        return s_clean.lower()
+
+    dt = dt or get_eastern_datetime()
+    hour = dt.hour
+    nearest_hour = min(EASTERN_SLOT_HOURS, key=lambda h: min(abs(h - hour), 24 - abs(h - hour)))
+    slot_num = EASTERN_SLOT_HOURS.index(nearest_hour) + 1
+    return f"slot_{slot_num}"
+
+
+def resolve_output_csv_path(output_arg: str | None = None, slot_arg: str | None = None) -> Path:
+    """
+    Resolve output CSV path for extraction in America/New_York timezone.
+    If output_arg is explicitly specified, return Path(output_arg).
+    Otherwise, generate day-wise and slot-wise path in Eastern Time:
+      data/results/<YYYY-MM-DD>/<slot_name>.csv
+    """
+    if output_arg:
+        return Path(output_arg)
+    
+    dt = get_eastern_datetime()
+    date_str = dt.strftime("%Y-%m-%d")
+    slot_name = get_slot_name(slot_arg, dt)
+    out_dir = RESULTS_DIR / date_str
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir / f"{slot_name}.csv"
+
+
 def load_routes_csv(path: Path) -> list[dict]:
     """
     Read route_id,source,destination[,category,stops,...] rows into the route dicts run_route() already uses.
@@ -2092,7 +2170,7 @@ def result_csv_rows(batch_id: str, rec: dict) -> list[dict]:
                  "pickup_place_id": res["pickup_details"]["place_id"],
                  "destination_place_id": res["destination_details"]["place_id"]}
                 for ride in res["rides"]]
-    when = rec.get("ended_at") or datetime.now().isoformat(timespec="seconds")
+    when = rec.get("ended_at") or get_eastern_datetime().isoformat(timespec="seconds")
     return [{**base, "timestamp": when}]
 
 
@@ -2157,7 +2235,8 @@ def append_results_csv(path: Path, batch_id: str, recs: list[dict]) -> int:
 
 def cmd_batch(args: argparse.Namespace) -> int:
     config = json.loads(Path(args.routes).read_text(encoding="utf-8"))
-    input_path, output_path = Path(args.input), Path(args.output)
+    input_path = Path(args.input)
+    output_path = resolve_output_csv_path(args.output, getattr(args, "slot", None))
     routes = load_routes_csv(input_path)  # the CSV decides WHICH routes run; routes.json maps the places
     if args.only:
         wanted = {int(x) for x in args.only.split(",")}
@@ -2167,7 +2246,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
     human_delays = not getattr(args, "no_human_delays", False)
     delay_scale = getattr(args, "pause_scale", 1.0)
 
-    started = datetime.now()
+    started = get_eastern_datetime()
     batch_id = f"batch-{started:%Y%m%d-%H%M%S}"
     batch_start = time.perf_counter()
     meta = {"batch_id": batch_id, "started_at": started.isoformat(timespec="seconds"), "finished_at": None,
@@ -2288,7 +2367,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
         meta["browser_close_seconds"] = round(time.perf_counter() - t, 2)
 
     total = time.perf_counter() - batch_start
-    meta["finished_at"] = datetime.now().isoformat(timespec="seconds")
+    meta["finished_at"] = get_eastern_datetime().isoformat(timespec="seconds")
     summary = summarize_batch(records, total, launches=1)
     results_path, perf_path = write_batch_files(batch_id, meta, records, summary)
 
@@ -2382,6 +2461,10 @@ def build_parser() -> argparse.ArgumentParser:
     add_acc.add_argument("--proxy", help="Custom proxy URL (http://user:pass@ip:port or socks5://ip:port).")
     add_acc.add_argument("--notes", help="Optional notes for this account.")
 
+    set_phone = acc_sub.add_parser("set-phone", help="Set or update phone number for an account.")
+    set_phone.add_argument("--account", required=True, help="Account name or phone number.")
+    set_phone.add_argument("--phone", required=True, help="New mobile phone number.")
+
     set_proxy = acc_sub.add_parser("set-proxy", help="Set or clear proxy for an account.")
     set_proxy.add_argument("--account", required=True, help="Account name or phone number.")
     set_proxy.add_argument("--proxy", default="", help="Proxy URL (http://user:pass@ip:port or socks5://ip:port). Pass empty string to clear.")
@@ -2407,8 +2490,10 @@ def build_parser() -> argparse.ArgumentParser:
     batch = command("batch", "Run the routes from the input CSV sequentially in ONE browser.")
     batch.add_argument("--input", default=str(ROUTES_CSV),
                        help="Routes to run: CSV with route_id,source,destination[,category,stops] (default: data/routes.csv).")
-    batch.add_argument("--output", default=str(RESULTS_CSV),
-                       help="CSV that results are APPENDED to, one row per ride (default: data/results.csv).")
+    batch.add_argument("--output", default=None,
+                       help="CSV that results are APPENDED to (default: auto day/slot file data/results/YYYY-MM-DD/slot_<N>.csv in Eastern Time).")
+    batch.add_argument("--slot", default=None,
+                       help="Slot index or label for this extraction run (e.g. 1 to 7 or slot_1). Defaults to current Eastern Time platform slot if omitted.")
     batch.add_argument("--routes", default=str(ROUTES_FILE),
                        help="Place mapping for the source/destination labels + region check (default: routes.json).")
     batch.add_argument("--only", help="Comma-separated route ids from the input CSV to run, e.g. 1,2 (default: all).")
