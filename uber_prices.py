@@ -387,19 +387,41 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", "", text.lower())).strip()
 
 
+# Uber shows the same address in two formats depending on session/region:
+#   Google style: "South Miami Avenue, Miami, FL, USA"   Uber style: "701 S Miami Ave, Miami, FL"
+# Address hints are compared after mapping every word to one canonical US abbreviation.
+ADDRESS_ABBREVIATIONS = {
+    "avenue": "ave", "av": "ave", "street": "st", "boulevard": "blvd", "drive": "dr", "road": "rd",
+    "court": "ct", "place": "pl", "lane": "ln", "terrace": "ter", "highway": "hwy", "parkway": "pkwy",
+    "circle": "cir", "square": "sq", "trail": "trl", "causeway": "cswy", "suite": "ste",
+    "north": "n", "south": "s", "east": "e", "west": "w",
+    "northeast": "ne", "northwest": "nw", "southeast": "se", "southwest": "sw",
+    "florida": "fl",
+}
+
+
+def canonical_address(text: str) -> str:
+    """normalize() + one spelling per street word: "Northeast 1st Avenue" == "NE 1st Ave" -> "ne 1st ave"."""
+    return " ".join(ADDRESS_ABBREVIATIONS.get(word, word) for word in normalize(text).split())
+
+
 @dataclass
 class LocationSpec:
     """
-    What to select: a suggestion whose name exactly equals `name` (or one of `aliases` -- Uber shows Google
-    names in the pickup field and its own names in the destination field, e.g. "LIV Nightclub Miami" vs
-    "Liv Nightclub"), plus words that must appear (as whole words) in its address.
-    CLI syntax: "Name, hint1, hint2". In routes.json: {"name": ..., "aliases": [...], "address": [...]}.
-    `name` is what gets typed into Uber.
+    What to select: a suggestion whose name EXACTLY equals `name` or one of `aliases` (Uber shows different
+    names for the same place depending on the session/region, e.g. "LIV Nightclub Miami" vs "Liv Nightclub"),
+    whose address contains every `address` hint as whole words, and none of the `address_not` words.
+    Addresses are compared with canonical_address(), so "Collins Avenue" also matches "Collins Ave".
+    `query` (optional) is the text typed into Uber; default is `name`.
+    CLI syntax: "Name, hint1, hint2". In routes.json:
+        {"name": ..., "aliases": [...], "address": [...], "address_not": [...], "query": ...}
     """
     name: str
     address_hints: list[str]
     label: str | None = None  # human label from the route list, for reports
     aliases: tuple[str, ...] = ()
+    address_not: tuple[str, ...] = ()
+    query: str | None = None
 
     @classmethod
     def parse(cls, query: str) -> "LocationSpec":
@@ -409,56 +431,44 @@ class LocationSpec:
     @classmethod
     def from_config(cls, cfg: dict) -> "LocationSpec":
         return cls(name=cfg["name"], address_hints=list(cfg.get("address", [])), label=cfg.get("label"),
-                   aliases=tuple(cfg.get("aliases", [])))
+                   aliases=tuple(cfg.get("aliases", [])), address_not=tuple(cfg.get("address_not", [])),
+                   query=cfg.get("query"))
+
+    @property
+    def typed_text(self) -> str:
+        return self.query or self.name
 
     def matches(self, s: Suggestion) -> bool:
-        address = f" {normalize(s.address)} "
-        return normalize(s.name) in {normalize(n) for n in (self.name, *self.aliases)} and all(
-            f" {normalize(h)} " in address for h in self.address_hints)
-
-    def matches_partial(self, s: Suggestion) -> bool:
-        address = f" {normalize(s.address)} "
-        norm_spec_names = [normalize(n) for n in (self.name, *self.aliases)]
-        norm_s_name = normalize(s.name)
-        partial_name_match = any(sn in norm_s_name or norm_s_name in sn for sn in norm_spec_names)
-        address_match = all(f" {normalize(h)} " in address for h in self.address_hints)
-        return partial_name_match and address_match
+        address = f" {canonical_address(s.address)} "
+        return (normalize(s.name) in {normalize(n) for n in (self.name, *self.aliases)}
+                and all(f" {canonical_address(h)} " in address for h in self.address_hints)
+                and not any(f" {canonical_address(w)} " in address for w in self.address_not))
 
     def __str__(self) -> str:
         names = " / ".join((self.name, *self.aliases))
-        return names + (f" [address: {', '.join(self.address_hints)}]" if self.address_hints else "")
+        text = names + (f" [address: {', '.join(self.address_hints)}]" if self.address_hints else "")
+        return text + (f" [not: {', '.join(self.address_not)}]" if self.address_not else "")
 
 
 def match_suggestion(spec: LocationSpec, suggestions: list[Suggestion]) -> Suggestion:
     """
-    Pick the suggestion that matches the requested location.
-    Tries exact matching first. If no exact match is found, falls back to partial/prefix matching.
+    Pick the single suggestion that exactly matches the requested location.
+    Never falls back to a partial name or to the first / closest result: no match or several different
+    matching places is an error, so a nearby place with a similar name can never be selected silently.
     """
     matches = [s for s in suggestions if spec.matches(s)]
-    if not matches:
-        matches = [s for s in suggestions if spec.matches_partial(s)]
-
     choices = "\n".join(f"    [{s.index}] {s}" for s in suggestions) or "    (none)"
     if not matches:
         raise LocationNotFoundError(
-            f"No Uber suggestion matches {str(spec)!r}. Nothing was selected.\n"
+            f"No Uber suggestion exactly matches {str(spec)!r}. Nothing was selected.\n"
             f"  Suggestions Uber showed:\n{choices}\n"
             "  Use the exact name of the correct place (and address words to pin it).")
-
-    unique_matches = {}
-    for s in matches:
-        key = (normalize(s.name), normalize(s.address))
-        if key not in unique_matches:
-            unique_matches[key] = s
-
-    if len(unique_matches) > 1:
-        exact_matches = [s for s in matches if spec.matches(s)]
-        if len(exact_matches) == 1:
-            return exact_matches[0]
-        # Return top match from Uber's suggestion list among partial matches
-        return matches[0]
-
-    return list(unique_matches.values())[0]
+    if len({(normalize(s.name), canonical_address(s.address)) for s in matches}) > 1:
+        listed = "\n".join(f"    [{s.index}] {s}" for s in matches)
+        raise AmbiguousLocationError(
+            f"{str(spec)!r} matches several different places. Nothing was selected.\n{listed}\n"
+            "  Add address words (or address_not) to pin one.")
+    return matches[0]
 
 
 def find_add_stop_button(page: Page):
@@ -599,33 +609,33 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
         human_pause(0.4, 0.8, scale=delay_scale, enabled=human_delays)
         field.fill("")
         if human_delays and delay_scale > 0:
-            for char in spec.name:
+            for char in spec.typed_text:
                 field.press(char)
                 char_delay = random.uniform(0.06, 0.18) * delay_scale
                 if char in " ,.-":
                     char_delay += random.uniform(0.12, 0.3) * delay_scale
                 time.sleep(char_delay)
         else:
-            field.press_sequentially(spec.name, delay=60)
+            field.press_sequentially(spec.typed_text, delay=60)
         lap("typing")
 
     # Retry typing ONCE, and only if the field actually lost the typed text (seen 2026-09-30: empty field
     # with Uber's default list). If the text is still there and Uber gives no list, do not retry.
     retried = False
     type_name()
-    if field.input_value() != spec.name:
+    if field.input_value() != spec.typed_text:
         retried = True
         timings["typing_retries"] = timings.get("typing_retries", 0) + 1
         type_name()
     try:
-        suggestions = read_suggestions(page, spec.name)
+        suggestions = read_suggestions(page, spec.typed_text)
     except SearchUnavailableError:
         lap("suggestions")
-        if retried or field.input_value() == spec.name:
+        if retried or field.input_value() == spec.typed_text:
             raise
         timings["typing_retries"] = timings.get("typing_retries", 0) + 1
         type_name()
-        suggestions = read_suggestions(page, spec.name)
+        suggestions = read_suggestions(page, spec.typed_text)
     lap("suggestions")
     if verbose:
         print(f"\nUber suggestions for {role} {str(spec)!r}:")
