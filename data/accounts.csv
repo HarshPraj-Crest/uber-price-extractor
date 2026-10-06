@@ -1,3 +1,0 @@
-account_name,phone_number,profile_dir,status,last_used,user_agent,proxy,notes
-Account_1,+916353487984,browser_profile_account1,active,2026-10-05T16:39:49,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",,Logged in via `open` command
-Account_2,+918780068663,browser_profile_account2,active,2026-10-05T17:22:49,"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",,Logged in via `open` command
