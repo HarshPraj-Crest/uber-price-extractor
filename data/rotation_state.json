@@ -1,11 +1,11 @@
 {
-  "last_account": "Account_2",
-  "last_rotated_at": "2026-10-05T17:24:10",
-  "run_count": 8,
-  "last_batch_id": "batch-20261005-172245",
-  "completed_routes": 2,
+  "last_account": "Account_3",
+  "last_rotated_at": "2026-10-06T10:52:04",
+  "run_count": 9,
+  "last_batch_id": "batch-20261006-105100",
+  "completed_routes": 1,
   "remaining_routes": 0,
-  "total_routes": 2,
+  "total_routes": 1,
   "failed_routes": 0,
-  "last_recorded_batch": "batch-20261005-172245"
+  "last_recorded_batch": "batch-20261006-105100"
 }
