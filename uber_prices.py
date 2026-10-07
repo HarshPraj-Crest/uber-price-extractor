@@ -70,18 +70,11 @@ from urllib.parse import parse_qs, urlencode, urlparse
 ACCOUNTS_CSV = BASE_DIR / "data" / "accounts.csv" if "BASE_DIR" in locals() else Path(__file__).resolve().parent / "data" / "accounts.csv"
 
 REALISTIC_USER_AGENTS = [
-    # Windows Chrome 154, 131 & 130
+    # Windows Chrome versions (All accounts strictly use Windows OS specifications)
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-    # macOS Chrome 154, 131 & 130
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-    # Linux Chrome 154, 131 & 130
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
 ]
 
 
@@ -118,10 +111,11 @@ def load_accounts(csv_path: Path | None = None) -> list[dict]:
     if not accounts:
         return []
     
-    # Auto-assign missing fields (user_agent, proxy)
+    # Auto-assign or fix missing / non-Windows fields (user_agent, proxy)
     updated = False
     for acc in accounts:
-        if not acc.get("user_agent"):
+        ua = acc.get("user_agent", "")
+        if not ua or "Windows" not in ua:
             acc["user_agent"] = random.choice(REALISTIC_USER_AGENTS)
             updated = True
         if "proxy" not in acc:
@@ -346,7 +340,7 @@ def attach_search_monitor(page: Page) -> None:
         except Exception:
             return
         if op == "PudoLocationSearch":
-            _last_search_response[id(page)] = f"HTTP {resp.status} at {datetime.now():%H:%M:%S}"
+            _last_search_response[id(page)] = f"HTTP {resp.status} at {get_eastern_datetime():%H:%M:%S}"
     page.on("response", on_response)
 
 
@@ -1201,7 +1195,7 @@ def open_worker(args: argparse.Namespace, create_profile: bool = False) -> Playw
 def save_screenshot(page: Page, label: str) -> Path | None:
     """Save a full-page screenshot for debugging. Returns the path, or None if it failed."""
     SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
-    path = SCREENSHOTS_DIR / f"{datetime.now():%Y%m%d-%H%M%S}-{label}.png"
+    path = SCREENSHOTS_DIR / f"{get_eastern_datetime():%Y%m%d-%H%M%S}-{label}.png"
     try:
         page.screenshot(path=str(path), full_page=True)
         return path
@@ -1257,6 +1251,63 @@ def cmd_check_session(args: argparse.Namespace) -> int:
         return 0
 
 
+def suggestion_list_style(suggestions: list[Suggestion]) -> str:
+    """Which of Uber's two suggestion lists this session got (the style varies by account / IP / session)."""
+    if any(s.address.rstrip().endswith("USA") for s in suggestions):
+        return "google-style"   # e.g. "South Miami Avenue, Miami, FL, USA" (has city entries)
+    return "uber-style"         # e.g. "701 S Miami Ave, Miami, FL" (specific places only)
+
+
+def cmd_check_locations(args: argparse.Namespace) -> int:
+    """
+    Read-only: for every location used by the routes, type it into a fresh booking page and report whether
+    the exact configured place appears in Uber's suggestion list. Never clicks a suggestion.
+    """
+    config = json.loads(Path(args.routes).read_text(encoding="utf-8"))
+    locations = config["locations"]
+    if args.labels:
+        labels = args.labels
+    else:
+        routes = load_routes_csv(Path(args.input))
+        labels = sorted({l for r in routes for l in (r["pickup"], r["destination"], *r.get("stops", []))})
+    rows = []
+    with open_worker(args) as worker:
+        page = worker.page
+        page.set_default_timeout(30_000)
+        ensure_logged_in(page)
+        print(f"[ok] Session is logged in. Checking {len(labels)} location(s); nothing will be selected.\n")
+        for label in labels:
+            if label not in locations:
+                rows.append((label, "-", "-", CONFIG_ERROR, "no mapping in routes.json"))
+                continue
+            spec = LocationSpec.from_config({**locations[label], "label": label})
+            style = "-"
+            try:
+                open_booking_page(page)
+                field = location_field(page, "pickup")
+                field.click()
+                field.fill("")
+                field.press_sequentially(spec.typed_text, delay=60)
+                suggestions = read_suggestions(page, spec.typed_text)
+                style = suggestion_list_style(suggestions)
+                match = match_suggestion(spec, suggestions)
+                rows.append((label, spec.typed_text, style, "OK", f"{match.name} -- {match.address}"))
+            except (ExtractorError, PlaywrightError) as exc:
+                status = classify_failure(exc)
+                detail = exc.message if isinstance(exc, PlaywrightError) else str(exc)
+                rows.append((label, spec.typed_text, style, status, detail.splitlines()[0]))
+            finally:
+                try:
+                    page.keyboard.press("Escape")  # close the suggestion list without choosing anything
+                except PlaywrightError:
+                    pass
+            print(f"  {rows[-1][3]:<19} {label:<30} [{rows[-1][2]}] {rows[-1][4][:90]}")
+    ok = sum(1 for r in rows if r[3] == "OK")
+    styles = sorted({r[2] for r in rows if r[2] != "-"})
+    print(f"\n[CHECK-LOCATIONS] {ok}/{len(rows)} locations found exactly. Suggestion list style(s) seen: {styles}")
+    return 0 if ok == len(rows) else 2
+
+
 def cmd_accounts(args: argparse.Namespace) -> int:
     sub = getattr(args, "account_subcommand", "list")
     if sub == "list" or sub is None:
@@ -1304,7 +1355,9 @@ def cmd_accounts(args: argparse.Namespace) -> int:
     elif sub == "add":
         name, phone = args.name, args.phone
         prof = args.profile_dir or f"browser_profile_{name.lower().replace(' ', '_')}"
-        ua = args.user_agent or random.choice(REALISTIC_USER_AGENTS)
+        ua = args.user_agent
+        if not ua or "Windows" not in ua:
+            ua = random.choice(REALISTIC_USER_AGENTS)
         proxy_val = getattr(args, "proxy", "") or ""
         accounts = load_accounts()
         existing = next((a for a in accounts if a.get("account_name", "").lower() == name.lower()), None)
@@ -1588,7 +1641,7 @@ def cmd_prices(args: argparse.Namespace) -> int:
                 page, args.pickup, args.destination, stops_queries=stops,
                 method=method, human_delays=human_delays, delay_scale=delay_scale)
             priced_rows = search_rides(page, pickup, destination, stops=selected_stops)
-            fetched_at = datetime.now()
+            fetched_at = get_eastern_datetime()
             rides, priced_rows = extract_rides_stable(page)
             validate_rides(rides, priced_rows)
             shot = save_screenshot(page, "prices-extracted")
@@ -2075,8 +2128,9 @@ RESULTS_CSV_FIELDS = [
 
 
 EASTERN_TZ = ZoneInfo("America/New_York")
+MIAMI_TZ = EASTERN_TZ  # Miami, Florida is in the US Eastern Timezone (America/New_York)
 
-# Platform slots in Eastern Time (America/New_York):
+# Platform slots in Miami / Eastern Time (America/New_York):
 # Slot 1: 6 AM  (06:00 ET)
 # Slot 2: 10 AM (10:00 ET)
 # Slot 3: 12 PM (12:00 ET)
@@ -2088,8 +2142,11 @@ EASTERN_SLOT_HOURS = [6, 10, 12, 14, 17, 22, 0]
 
 
 def get_eastern_datetime() -> datetime:
-    """Get current datetime explicitly in Eastern Time (America/New_York), automatically handling EST/EDT transitions."""
+    """Get current datetime explicitly in Miami / Eastern Time (America/New_York), automatically handling EST/EDT transitions."""
     return datetime.now(EASTERN_TZ)
+
+
+get_miami_datetime = get_eastern_datetime
 
 
 def get_slot_name(slot_arg: str | int | None = None, dt: datetime | None = None) -> str:
@@ -2116,18 +2173,16 @@ def resolve_output_csv_path(output_arg: str | None = None, slot_arg: str | None 
     """
     Resolve output CSV path for extraction in America/New_York timezone.
     If output_arg is explicitly specified, return Path(output_arg).
-    Otherwise, generate day-wise and slot-wise path in Eastern Time:
-      data/results/<YYYY-MM-DD>/<slot_name>.csv
+    Otherwise, generate a single day-wise CSV path in Eastern Time:
+      data/results/<YYYY-MM-DD>.csv
     """
     if output_arg:
         return Path(output_arg)
     
     dt = get_eastern_datetime()
     date_str = dt.strftime("%Y-%m-%d")
-    slot_name = get_slot_name(slot_arg, dt)
-    out_dir = RESULTS_DIR / date_str
-    out_dir.mkdir(parents=True, exist_ok=True)
-    return out_dir / f"{slot_name}.csv"
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    return RESULTS_DIR / f"{date_str}.csv"
 
 
 def load_routes_csv(path: Path) -> list[dict]:
@@ -2456,6 +2511,11 @@ def build_parser() -> argparse.ArgumentParser:
     command("open", "Open Uber in a visible browser (use this to log in manually).")
     command("check-session", "Verify the saved browser profile is still logged in.")
     command("browser-info", "Read-only: show the browser environment the worker uses (no Uber action).")
+    check_locs = command("check-locations",
+                         "Read-only: check every route location is found exactly in Uber's suggestions (never clicks).")
+    check_locs.add_argument("--input", default=str(ROUTES_CSV), help="Routes CSV whose locations to check.")
+    check_locs.add_argument("--routes", default=str(ROUTES_FILE), help="Place mapping file (default: routes.json).")
+    check_locs.add_argument("--labels", nargs="+", help="Check only these location labels, e.g. --labels Miami Davie")
 
     acc_parser = command("accounts", "Manage registered mobile number accounts (list, check, add, set-proxy, setup, status).")
     acc_sub = acc_parser.add_subparsers(dest="account_subcommand")
@@ -2521,7 +2581,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    handlers = {"open": cmd_open, "check-session": cmd_check_session, "browser-info": cmd_browser_info,
+    handlers = {"open": cmd_open, "check-session": cmd_check_session, "check-locations": cmd_check_locations, "browser-info": cmd_browser_info,
                 "accounts": cmd_accounts, "locations": cmd_locations,
                 "search": cmd_search, "prices": cmd_prices, "batch": cmd_batch, "status": cmd_status}
     try:

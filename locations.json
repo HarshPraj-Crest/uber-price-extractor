@@ -1,0 +1,1657 @@
+{
+    "version": 2,
+    "region": "Miami, FL",
+    "generated": "2026-10-07",
+    "coordinate_source": "OpenStreetMap Nominatim geocode of each street address (WGS84)",
+    "how_to_search": "Use `search_query` (name + full address) as text, or pass lat/lng directly for zero ambiguity.",
+    "places": {
+        "BRICKELL_CITY_CENTRE": {
+            "name": "Brickell City Centre",
+            "address": "701 S Miami Ave, Miami, FL",
+            "search_query": "Brickell City Centre, 701 S Miami Ave, Miami, FL",
+            "lat": 25.767392,
+            "lng": -80.1929123,
+            "type": "mall",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.767392,-80.1929123",
+            "note": "Used for every 'Brickell' endpoint.",
+            "uber": {
+                "search_text": "Brickell City Centre",
+                "pick_title": "Brickell City Centre",
+                "pick_subtitle": "701 S Miami Ave, Miami, FL",
+                "place_id": "c269a9ae-421b-3492-9b3b-791a964edd0e",
+                "avoid": [
+                    "Apple Brickell City Centre",
+                    "Brickell City Centre: Loading Zone A/C",
+                    "Reach Brickell City Centre"
+                ]
+            }
+        },
+        "KASEYA_CENTER": {
+            "name": "Kaseya Center",
+            "address": "601 Biscayne Blvd, Miami, FL",
+            "search_query": "Kaseya Center, 601 Biscayne Blvd, Miami, FL",
+            "lat": 25.7813595,
+            "lng": -80.1879435,
+            "type": "arena",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7813595,-80.1879435",
+            "note": "Formerly FTX Arena / American Airlines Arena.",
+            "uber": {
+                "search_text": "Kaseya Center",
+                "pick_title": "Kaseya Center",
+                "pick_subtitle": "601 Biscayne Blvd, Miami, FL",
+                "place_id": "b92e62c8-e81b-363e-9382-341283508a58",
+                "avoid": [
+                    "The Miami Heat Store At Kaseya Center (shows FIRST in results)",
+                    "Kaseya - 701 Brickell Ave (an office)"
+                ]
+            }
+        },
+        "FONTAINEBLEAU": {
+            "name": "Fontainebleau Miami Beach",
+            "address": "4441 Collins Ave, Miami Beach, FL",
+            "search_query": "Fontainebleau Miami Beach, 4441 Collins Ave, Miami Beach, FL",
+            "lat": 25.8180847,
+            "lng": -80.1220423,
+            "type": "hotel",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.8180847,-80.1220423",
+            "uber": {
+                "search_text": "Fontainebleau Miami Beach",
+                "pick_title": "Fontainebleau Miami Beach",
+                "pick_subtitle": "4441 Collins Ave, Miami Beach, FL",
+                "place_id": "e383d5f1-c6d7-8a3d-8884-ee8272548412",
+                "avoid": [
+                    "Sorrento Tower, Fontainebleau - 4391 Collins Ave"
+                ]
+            }
+        },
+        "LIV_NIGHTCLUB": {
+            "name": "LIV Nightclub",
+            "address": "4441 Collins Ave, Miami Beach, FL",
+            "search_query": "Liv Nightclub, 4441 Collins Ave, Miami Beach, FL",
+            "lat": 25.8180847,
+            "lng": -80.1220423,
+            "type": "nightclub",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.8180847,-80.1220423",
+            "note": "Inside Fontainebleau - same address/building as FONTAINEBLEAU.",
+            "uber": {
+                "search_text": "Liv Nightclub",
+                "pick_title": "Liv Nightclub",
+                "pick_subtitle": "4441 Collins Ave, Miami Beach, FL",
+                "place_id": "dc268d6c-8003-33f5-a730-ae9439919060",
+                "avoid": [
+                    "LIV Nightclub - Las Vegas, NV",
+                    "Ivy Nightclub - 1045 5th St"
+                ]
+            }
+        },
+        "PRIME_112": {
+            "name": "Prime 112",
+            "address": "112 Ocean Dr, Miami Beach, FL",
+            "search_query": "Prime 112, 112 Ocean Dr, Miami Beach, FL",
+            "lat": 25.7699188,
+            "lng": -80.1332509,
+            "type": "restaurant",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7699188,-80.1332509",
+            "note": "Located in Browns Hotel.",
+            "uber": {
+                "search_text": "Prime 112",
+                "pick_title": "Prime 112",
+                "pick_subtitle": "112 Ocean Dr, Miami Beach, FL",
+                "place_id": "caa9649a-f140-3b55-a64e-ac3f913ebef8",
+                "avoid": [
+                    "Prime Italian - 101 Ocean Dr",
+                    "Prime Fish - 100 Collins Ave"
+                ]
+            }
+        },
+        "PAPI_STEAK": {
+            "name": "Papi Steak",
+            "address": "736 1st St, Miami Beach, FL",
+            "search_query": "Papi Steak, 736 1st St, Miami Beach, FL",
+            "lat": 25.7698355,
+            "lng": -80.1361928,
+            "type": "restaurant",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7698355,-80.1361928",
+            "uber": {
+                "search_text": "Papi Steak",
+                "pick_title": "Papi Steak",
+                "pick_subtitle": "736 1st St, Miami Beach, FL",
+                "place_id": "967234dd-eed6-3f41-acdb-f082ab6940c2",
+                "avoid": [
+                    "Papi's Palace - 555 NE 34th St"
+                ]
+            }
+        },
+        "E11EVEN": {
+            "name": "E11EVEN Miami",
+            "address": "29 NE 11th St, Miami, FL",
+            "search_query": "E11EVEN Miami, 29 NE 11th St, Miami, FL",
+            "lat": 25.7849481,
+            "lng": -80.1935402,
+            "type": "nightclub",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7849481,-80.1935402",
+            "uber": {
+                "search_text": "E11EVEN Miami",
+                "pick_title": "E11EVEN Miami",
+                "pick_subtitle": "29 NE 11th St, Miami, FL",
+                "place_id": "900c1ea9-5035-3b14-803b-eda892664f80",
+                "avoid": [
+                    "E11EVEN Club Hotel & Residences - 20 NE 11th St",
+                    "E11EVEN Residences Beyond - 60 NE 11th St"
+                ]
+            }
+        },
+        "DESIGN_DISTRICT": {
+            "name": "Miami Design District (Palm Court)",
+            "address": "3841 NE 2nd Ave, Miami, FL",
+            "search_query": "Miami Design District, 3841 NE 2nd Ave, Miami, FL",
+            "lat": 25.8127406,
+            "lng": -80.1910272,
+            "type": "district",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.8127406,-80.1910272",
+            "note": "Area pinned to Palm Court, the district's central plaza.",
+            "uber": {
+                "search_text": "Miami Design District",
+                "pick_title": "Miami Design District",
+                "pick_subtitle": "3841 NE 2nd Ave, Miami, FL",
+                "place_id": "a249c716-8efc-ab82-18a3-34c7e3229537",
+                "avoid": [
+                    "Sofia Miami Design District - 140 NE 39th St"
+                ]
+            }
+        },
+        "WYNWOOD_WALLS": {
+            "name": "Wynwood Walls",
+            "address": "2516 NW 2nd Ave, Miami, FL",
+            "search_query": "Wynwood Walls, 2516 NW 2nd Ave, Miami, FL",
+            "lat": 25.8010509,
+            "lng": -80.1993178,
+            "type": "attraction",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.8010509,-80.1993178",
+            "uber": {
+                "search_text": "Wynwood Walls",
+                "pick_title": "Wynwood Walls",
+                "pick_subtitle": "2516 NW 2nd Ave, Miami, FL",
+                "place_id": "a6d5d419-2abe-4939-819f-3c54a700bd12",
+                "avoid": [
+                    "The Wynwood Walls Shop - 222 NW 26th St",
+                    "Wynwood Art Walk"
+                ]
+            }
+        },
+        "SETAI": {
+            "name": "The Setai Miami Beach",
+            "address": "2001 Collins Ave, Miami Beach, FL",
+            "search_query": "The Setai, 2001 Collins Ave, Miami Beach, FL",
+            "lat": 25.7957987,
+            "lng": -80.1286959,
+            "type": "hotel",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7957987,-80.1286959",
+            "uber": {
+                "search_text": "The Setai",
+                "pick_title": "The Setai",
+                "pick_subtitle": "2001 Collins Ave, Miami Beach, FL",
+                "place_id": "19eca538-f4e7-3127-98bd-81ec6cef8dfe",
+                "avoid": [
+                    "Jaya at The Setai",
+                    "Setai Unit 2107 - 101 20th St"
+                ]
+            }
+        },
+        "SOUTH_BEACH": {
+            "name": "South Beach (Art Deco Welcome Center, Ocean Dr)",
+            "address": "1001 Ocean Dr, Miami Beach, FL",
+            "search_query": "Art Deco Welcome Center, 1001 Ocean Dr, Miami Beach, FL",
+            "lat": 25.7802869,
+            "lng": -80.1303441,
+            "type": "district",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7802869,-80.1303441",
+            "note": "Area pinned to Ocean Dr & 10th St (Lummus Park).",
+            "uber": {
+                "search_text": "Art Deco Welcome Center",
+                "pick_title": "Art Deco Welcome Center",
+                "pick_subtitle": "1001 Ocean Dr, Miami Beach, FL",
+                "place_id": "bb77a18a-497a-f931-ab88-8a24e3d0cb10",
+                "avoid": [
+                    "Art Deco Museum (same address, fine)",
+                    "'South Beach' generic results - 1505 Collins Ave / area pin"
+                ]
+            }
+        },
+        "AC_HOTEL_MB": {
+            "name": "AC Hotel by Marriott Miami Beach",
+            "address": "2912 Collins Ave, Miami Beach, FL",
+            "search_query": "AC Hotel Miami Beach, 2912 Collins Ave, Miami Beach, FL",
+            "lat": 25.8054344,
+            "lng": -80.125378,
+            "type": "hotel",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.8054344,-80.125378",
+            "uber": {
+                "search_text": "AC Hotel Miami Beach",
+                "pick_title": "AC Hotel Miami Beach",
+                "pick_subtitle": "2912 Collins Ave, Miami Beach, FL",
+                "place_id": "db64f9b9-534c-3530-8977-9e29996d1baa",
+                "avoid": [
+                    "AC Hotel Miami Brickell - 115 SW 8th St",
+                    "The Miami Beach Edition - 2901 Collins Ave"
+                ]
+            }
+        },
+        "PLAYA_MIAMI": {
+            "name": "Playa Miami",
+            "address": "915 Lincoln Rd, Miami Beach, FL",
+            "search_query": "Playa, 915 Lincoln Rd, Miami Beach, FL",
+            "lat": 25.7908851,
+            "lng": -80.137897,
+            "type": "restaurant",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7908851,-80.137897",
+            "note": "Steakhouse on Lincoln Road.",
+            "uber": {
+                "search_text": "Playa Miami Lincoln Rd",
+                "pick_title": "Playa",
+                "pick_subtitle": "915 Lincoln Rd, Miami Beach, FL",
+                "place_id": "992d0320-794d-d545-dec8-9dd94e557082",
+                "avoid": [
+                    "Uber lists it as just 'Playa' - search 'Playa Miami Lincoln Rd'"
+                ]
+            }
+        },
+        "VICTORY": {
+            "name": "Victory Restaurant & Lounge",
+            "address": "3252 NE 1st Ave Ste 107, Miami, FL",
+            "search_query": "Victory Restaurant & Lounge, 3252 NE 1st Ave Ste 107, Miami, FL",
+            "lat": 25.8073013,
+            "lng": -80.1933861,
+            "type": "restaurant",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.8073013,-80.1933861",
+            "note": "Midtown Miami.",
+            "uber": {
+                "search_text": "Victory Restaurant & Lounge",
+                "pick_title": "Victory Restaurant & Lounge",
+                "pick_subtitle": "3252 NE 1st Ave Ste 107, Miami, FL",
+                "place_id": "6ae2e245-af8d-bebc-a9d2-51748205108a",
+                "avoid": [
+                    "Victory Restaurant & Lounge - Washington, DC",
+                    "Victory Restaurant & Lounge - Houston, TX"
+                ]
+            }
+        },
+        "BAL_HARBOUR_SHOPS": {
+            "name": "Bal Harbour Shops",
+            "address": "9700 Collins Ave, Bal Harbour, FL",
+            "search_query": "Bal Harbour Shops, 9700 Collins Ave, Bal Harbour, FL",
+            "lat": 25.8882233,
+            "lng": -80.1249794,
+            "type": "mall",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.8882233,-80.1249794",
+            "note": "Used for every 'Bal Harbour' endpoint.",
+            "uber": {
+                "search_text": "Bal Harbour Shops",
+                "pick_title": "Bal Harbour Shops",
+                "pick_subtitle": "9700 Collins Ave, Bal Harbour, FL",
+                "place_id": "895f9ad1-71d0-8e27-7c69-ccf708e6fc6a",
+                "avoid": [
+                    "Bal Harbour Shops - 9700 Collins Ave, Surfside, FL (duplicate listing, shows FIRST)",
+                    "Bucherer Bal Harbour Shops"
+                ]
+            }
+        },
+        "TABOO": {
+            "name": "Taboo Miami by G5ive",
+            "address": "337 NW 170th St, North Miami Beach, FL",
+            "search_query": "Taboo Miami, 337 NW 170th St, North Miami Beach, FL",
+            "lat": 25.9307745,
+            "lng": -80.2071351,
+            "type": "nightclub",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.9307745,-80.2071351",
+            "note": "VERIFY: a second 'Taboo Miami' exists at 728 NW 79th St, Miami, FL 33150. This file uses the NW 170th St venue.",
+            "uber": {
+                "search_text": "Taboo Miami",
+                "pick_title": "Taboo Miami",
+                "pick_subtitle": "337 NW 170th St, North Miami Beach, FL",
+                "place_id": "7c68dda7-69fb-095f-202f-69ffdd4cbe4b",
+                "avoid": [
+                    "Taboo Miami - 2657 NW 36th St",
+                    "Taboo Miami - 728 NW 79th St"
+                ]
+            }
+        },
+        "COCONUT_GROVE": {
+            "name": "Coconut Grove (CocoWalk)",
+            "address": "3015 Grand Ave, Coconut Grove, FL",
+            "search_query": "CocoWalk, 3015 Grand Ave, Coconut Grove, FL",
+            "lat": 25.7286438,
+            "lng": -80.2420384,
+            "type": "district",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7286438,-80.2420384",
+            "note": "Area pinned to CocoWalk.",
+            "uber": {
+                "search_text": "CocoWalk",
+                "pick_title": "CocoWalk",
+                "pick_subtitle": "3015 Grand Ave, Coconut Grove, FL",
+                "place_id": "017fcd16-141c-36ab-949a-e9fc59b6f9f0",
+                "avoid": [
+                    "Cocowalk - 3350 Virginia St (office entrance)"
+                ]
+            }
+        },
+        "TOOTSIES": {
+            "name": "Tootsie's Cabaret",
+            "address": "150 NW 183rd St, Miami Gardens, FL",
+            "search_query": "Tootsie's Cabaret, 150 NW 183rd St, Miami Gardens, FL",
+            "lat": 25.942665,
+            "lng": -80.204166,
+            "type": "nightclub",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.942665,-80.204166",
+            "uber": {
+                "search_text": "Tootsie's Cabaret",
+                "pick_title": "Tootsie's Cabaret",
+                "pick_subtitle": "150 NW 183rd St, Miami Gardens, FL",
+                "place_id": "8cfff7c9-4918-ce97-61c9-29c493b48683",
+                "avoid": [
+                    "Tootsie's Kitchen - Hollywood, FL"
+                ]
+            }
+        },
+        "HARD_ROCK": {
+            "name": "Seminole Hard Rock Hotel & Casino Hollywood",
+            "address": "1 Seminole Way, Hollywood, FL",
+            "search_query": "Seminole Hard Rock Hotel & Casino Hollywood, FL, 1 Seminole Way, Hollywood, FL",
+            "lat": 26.0517276,
+            "lng": -80.2112423,
+            "type": "casino",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=26.0517276,-80.2112423",
+            "note": "The Guitar Hotel, Hollywood FL - not the Tampa Hard Rock.",
+            "uber": {
+                "search_text": "Seminole Hard Rock Hotel & Casino Hollywood, FL",
+                "pick_title": "Seminole Hard Rock Hotel & Casino Hollywood, FL",
+                "pick_subtitle": "1 Seminole Way, Hollywood, FL",
+                "place_id": "09706055-52c4-3c49-ad30-8000e35e5b7a",
+                "avoid": [
+                    "Hard Rock Cafe - same address (fine)",
+                    "Hard Rock Hotel-Ft Lauderdale - 5300 Seminole Way"
+                ]
+            }
+        },
+        "BOOBY_TRAP": {
+            "name": "Booby Trap on the River",
+            "address": "3615 NW South River Dr, Miami, FL",
+            "search_query": "Booby Trap on the River, 3615 NW South River Dr, Miami, FL",
+            "lat": 25.8028933,
+            "lng": -80.2550413,
+            "type": "nightclub",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.8028933,-80.2550413",
+            "uber": {
+                "search_text": "Booby Trap on the River",
+                "pick_title": "Booby Trap on the River",
+                "pick_subtitle": "3615 NW South River Dr, Miami, FL",
+                "place_id": "dd8a5d6c-f8c2-115d-16f9-7dff40c8c112",
+                "avoid": [
+                    "Boobytrap on the River - 1756 N Bayshore Dr (wrong listing)",
+                    "Booby Trap Doral - 5325 NW 77 Ave"
+                ]
+            }
+        },
+        "MIA": {
+            "name": "Miami International Airport (MIA)",
+            "address": "2100 NW 42nd Ave, Miami, FL",
+            "search_query": "Miami International Airport (MIA), 2100 NW 42nd Ave, Miami, FL",
+            "lat": 25.7949789,
+            "lng": -80.2867234,
+            "type": "airport",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7949789,-80.2867234",
+            "note": "Rideshare pickup is on the Departures level (upper). Uber/Lyft may ask you to pick a terminal door.",
+            "uber": {
+                "search_text": "Miami International Airport (MIA)",
+                "pick_title": "Miami International Airport (MIA)",
+                "pick_subtitle": "2100 NW 42nd Ave, Miami, FL",
+                "place_id": "9547ec47-c85d-3891-af8f-eb7877b4fb13",
+                "avoid": [
+                    "Miami International Airport Hotel",
+                    "Central Terminal (only if you want a specific terminal)"
+                ]
+            }
+        },
+        "FLL": {
+            "name": "Fort Lauderdale-Hollywood International Airport (FLL)",
+            "address": "100 Terminal Dr, Fort Lauderdale, FL",
+            "search_query": "Fort Lauderdale-Hollywood International Airport (FLL), 100 Terminal Dr, Fort Lauderdale, FL",
+            "lat": 26.072017,
+            "lng": -80.1509967,
+            "type": "airport",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=26.072017,-80.1509967",
+            "note": "Rideshare apps may ask you to pick a terminal (T1-T4).",
+            "uber": {
+                "search_text": "Fort Lauderdale-Hollywood International Airport (FLL)",
+                "pick_title": "Fort Lauderdale-Hollywood International Airport (FLL)",
+                "pick_subtitle": "100 Terminal Dr, Fort Lauderdale, FL",
+                "place_id": "663a3b93-5651-35df-905e-5fb3294ecd81",
+                "avoid": [
+                    "Terminal 1-4 entries (only if you want a specific terminal)"
+                ]
+            }
+        },
+        "AVENTURA_MALL": {
+            "name": "Aventura Mall",
+            "address": "19501 Biscayne Blvd, Aventura, FL",
+            "search_query": "Aventura Mall, 19501 Biscayne Blvd, Aventura, FL",
+            "lat": 25.9585957,
+            "lng": -80.1455534,
+            "type": "mall",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.9585957,-80.1455534",
+            "uber": {
+                "search_text": "Aventura Mall",
+                "pick_title": "Aventura Mall",
+                "pick_subtitle": "19501 Biscayne Blvd, Aventura, FL",
+                "place_id": "3e0ccf9c-ddd1-334b-a6e5-28a8203a0763",
+                "avoid": [
+                    "Aventura Mall Bus Terminal"
+                ]
+            }
+        },
+        "FORT_LAUDERDALE": {
+            "name": "Downtown Fort Lauderdale (Broward Center for the Performing Arts)",
+            "address": "201 SW 5th Ave, Fort Lauderdale, FL",
+            "search_query": "Broward Center for the Performing Arts, 201 SW 5th Ave, Fort Lauderdale, FL",
+            "lat": 26.120307,
+            "lng": -80.148573,
+            "type": "city",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=26.120307,-80.148573",
+            "note": "City pinned to a downtown landmark.",
+            "uber": {
+                "search_text": "Broward Center for the Performing Arts",
+                "pick_title": "Broward Center for the Performing Arts",
+                "pick_subtitle": "201 SW 5th Ave, Fort Lauderdale, FL",
+                "place_id": "251a16e1-2422-371c-b3bf-dc0f98b26349",
+                "avoid": [
+                    "Broward Center - 501 NE 1st St (wrong listing)",
+                    "Broward Center - 599-501 NE 1st Ave (wrong listing)"
+                ]
+            }
+        },
+        "MIAMI_BEACH": {
+            "name": "Miami Beach City Hall",
+            "address": "1700 Convention Center Dr, Miami Beach, FL",
+            "search_query": "Miami Beach City Hall, 1700 Convention Center Dr, Miami Beach, FL",
+            "lat": 25.7927683,
+            "lng": -80.1353862,
+            "type": "city",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7927683,-80.1353862",
+            "note": "City pinned to City Hall.",
+            "uber": {
+                "search_text": "Miami Beach City Hall",
+                "pick_title": "Miami Beach City Hall",
+                "pick_subtitle": "1700 Convention Center Dr, Miami Beach, FL",
+                "place_id": "5ef943cb-3629-3f02-87ae-7f15bb3b283c",
+                "avoid": [
+                    "City Of North Miami Beach City Hall"
+                ]
+            }
+        },
+        "HOMESTEAD": {
+            "name": "Homestead City Hall",
+            "address": "100 Civic Ct, Homestead, FL",
+            "search_query": "City of Homestead Government, 100 Civic Ct, Homestead, FL",
+            "lat": 25.4721869,
+            "lng": -80.4756547,
+            "type": "city",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.4721869,-80.4756547",
+            "note": "City pinned to City Hall.",
+            "uber": {
+                "search_text": "100 Civic Ct Homestead",
+                "pick_title": "City of Homestead Government",
+                "pick_subtitle": "100 Civic Ct, Homestead, FL",
+                "place_id": "80718857-714a-b4c9-7c7b-2e4d3a02f809",
+                "avoid": [
+                    "'Homestead City Hall' in Uber points to the OLD building at 790 N Homestead Blvd - do not use"
+                ]
+            }
+        },
+        "BOCA_RATON": {
+            "name": "Mizner Park, Boca Raton",
+            "address": "327 Plz Real Ste 315, Boca Raton, FL",
+            "search_query": "Mizner Park, 327 Plz Real Ste 315, Boca Raton, FL",
+            "lat": 26.3551912,
+            "lng": -80.0857115,
+            "type": "city",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=26.3551912,-80.0857115",
+            "note": "City pinned to Mizner Park.",
+            "uber": {
+                "search_text": "Mizner Park",
+                "pick_title": "Mizner Park",
+                "pick_subtitle": "327 Plz Real Ste 315, Boca Raton, FL",
+                "place_id": "e8593178-e9b1-3757-9752-23e3b83e51de",
+                "avoid": [
+                    "Regus - Mizner Park (shows FIRST)",
+                    "Mizner Park - Garage B"
+                ]
+            }
+        },
+        "DOWNTOWN_MIAMI": {
+            "name": "Bayfront Park, Downtown Miami",
+            "address": "301 Biscayne Blvd, Miami, FL",
+            "search_query": "Bayfront Park, 301 Biscayne Blvd, Miami, FL",
+            "lat": 25.7772993,
+            "lng": -80.1883999,
+            "type": "city",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=25.7772993,-80.1883999",
+            "note": "Used for every 'Miami' / 'Downtown Miami' endpoint.",
+            "uber": {
+                "search_text": "Bayfront Park",
+                "pick_title": "Bayfront Park",
+                "pick_subtitle": "301 Biscayne Blvd, Miami, FL",
+                "place_id": "c4edf3c4-ad3a-31b1-bc81-aafca64ee2dc",
+                "avoid": [
+                    "Bayfront Parking - 255 NE 1st St",
+                    "Bayfront Park Metromover Station"
+                ]
+            }
+        },
+        "WEST_PALM_BEACH": {
+            "name": "Rosemary Square, West Palm Beach",
+            "address": "700 S Rosemary Ave, West Palm Beach, FL",
+            "search_query": "Cityplace, 700 S Rosemary Ave, West Palm Beach, FL",
+            "lat": 26.707159,
+            "lng": -80.057072,
+            "type": "city",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=26.707159,-80.057072",
+            "note": "City pinned to Rosemary Square (formerly CityPlace).",
+            "uber": {
+                "search_text": "CityPlace West Palm Beach",
+                "pick_title": "Cityplace",
+                "pick_subtitle": "700 S Rosemary Ave, West Palm Beach, FL",
+                "place_id": "ebd5424e-d0b8-3181-a0a6-e721d8013807",
+                "avoid": [
+                    "Uber has no plain 'Rosemary Square' entry - search 'CityPlace West Palm Beach'",
+                    "Cityplace Tower / South Tower (Okeechobee Blvd)"
+                ]
+            }
+        },
+        "DAVIE": {
+            "name": "Davie Town Hall",
+            "address": "6591 Orange Dr, Davie, FL",
+            "search_query": "Davie Town Hall, 6591 Orange Dr, Davie, FL",
+            "lat": 26.0657563,
+            "lng": -80.2348057,
+            "type": "city",
+            "google_maps_url": "https://www.google.com/maps/search/?api=1&query=26.0657563,-80.2348057",
+            "note": "Town pinned to Town Hall.",
+            "uber": {
+                "search_text": "Davie Town Hall",
+                "pick_title": "Davie Town Hall",
+                "pick_subtitle": "6591 Orange Dr, Davie, FL",
+                "place_id": "bfe90420-1658-cb5d-4784-db052c4e1b1c",
+                "avoid": [
+                    "Davie Town Hall - 8800 SW 36th St (wrong listing)"
+                ]
+            }
+        }
+    },
+    "routes": [
+        {
+            "id": "S01",
+            "category": "short",
+            "label": "Brickell City Centre -> Kaseya Center",
+            "origin": {
+                "place_id": "BRICKELL_CITY_CENTRE",
+                "name": "Brickell City Centre",
+                "address": "701 S Miami Ave, Miami, FL",
+                "lat": 25.767392,
+                "lng": -80.1929123,
+                "uber_title": "Brickell City Centre",
+                "uber_subtitle": "701 S Miami Ave, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "KASEYA_CENTER",
+                "name": "Kaseya Center",
+                "address": "601 Biscayne Blvd, Miami, FL",
+                "lat": 25.7813595,
+                "lng": -80.1879435,
+                "uber_title": "Kaseya Center",
+                "uber_subtitle": "601 Biscayne Blvd, Miami, FL"
+            },
+            "est_distance_mi": 2,
+            "est_duration_min": 11.5,
+            "tags": []
+        },
+        {
+            "id": "S02",
+            "category": "short",
+            "label": "Fontainebleau Miami Beach -> LIV Nightclub",
+            "origin": {
+                "place_id": "FONTAINEBLEAU",
+                "name": "Fontainebleau Miami Beach",
+                "address": "4441 Collins Ave, Miami Beach, FL",
+                "lat": 25.8180847,
+                "lng": -80.1220423,
+                "uber_title": "Fontainebleau Miami Beach",
+                "uber_subtitle": "4441 Collins Ave, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "LIV_NIGHTCLUB",
+                "name": "LIV Nightclub",
+                "address": "4441 Collins Ave, Miami Beach, FL",
+                "lat": 25.8180847,
+                "lng": -80.1220423,
+                "uber_title": "Liv Nightclub",
+                "uber_subtitle": "4441 Collins Ave, Miami Beach, FL"
+            },
+            "est_distance_mi": 0.5,
+            "est_duration_min": 3.5,
+            "tags": [
+                "same_building"
+            ]
+        },
+        {
+            "id": "S03",
+            "category": "short",
+            "label": "Prime 112 -> Papi Steak",
+            "origin": {
+                "place_id": "PRIME_112",
+                "name": "Prime 112",
+                "address": "112 Ocean Dr, Miami Beach, FL",
+                "lat": 25.7699188,
+                "lng": -80.1332509,
+                "uber_title": "Prime 112",
+                "uber_subtitle": "112 Ocean Dr, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "PAPI_STEAK",
+                "name": "Papi Steak",
+                "address": "736 1st St, Miami Beach, FL",
+                "lat": 25.7698355,
+                "lng": -80.1361928,
+                "uber_title": "Papi Steak",
+                "uber_subtitle": "736 1st St, Miami Beach, FL"
+            },
+            "est_distance_mi": 1,
+            "est_duration_min": 7.5,
+            "tags": []
+        },
+        {
+            "id": "S04",
+            "category": "short",
+            "label": "E11EVEN Miami -> Kaseya Center",
+            "origin": {
+                "place_id": "E11EVEN",
+                "name": "E11EVEN Miami",
+                "address": "29 NE 11th St, Miami, FL",
+                "lat": 25.7849481,
+                "lng": -80.1935402,
+                "uber_title": "E11EVEN Miami",
+                "uber_subtitle": "29 NE 11th St, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "KASEYA_CENTER",
+                "name": "Kaseya Center",
+                "address": "601 Biscayne Blvd, Miami, FL",
+                "lat": 25.7813595,
+                "lng": -80.1879435,
+                "uber_title": "Kaseya Center",
+                "uber_subtitle": "601 Biscayne Blvd, Miami, FL"
+            },
+            "est_distance_mi": 1,
+            "est_duration_min": 7.5,
+            "tags": []
+        },
+        {
+            "id": "S05",
+            "category": "short",
+            "label": "Miami Design District (Palm Court) -> Wynwood Walls",
+            "origin": {
+                "place_id": "DESIGN_DISTRICT",
+                "name": "Miami Design District (Palm Court)",
+                "address": "3841 NE 2nd Ave, Miami, FL",
+                "lat": 25.8127406,
+                "lng": -80.1910272,
+                "uber_title": "Miami Design District",
+                "uber_subtitle": "3841 NE 2nd Ave, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "WYNWOOD_WALLS",
+                "name": "Wynwood Walls",
+                "address": "2516 NW 2nd Ave, Miami, FL",
+                "lat": 25.8010509,
+                "lng": -80.1993178,
+                "uber_title": "Wynwood Walls",
+                "uber_subtitle": "2516 NW 2nd Ave, Miami, FL"
+            },
+            "est_distance_mi": 2,
+            "est_duration_min": 9.5,
+            "tags": []
+        },
+        {
+            "id": "S06",
+            "category": "short",
+            "label": "The Setai Miami Beach -> Prime 112",
+            "origin": {
+                "place_id": "SETAI",
+                "name": "The Setai Miami Beach",
+                "address": "2001 Collins Ave, Miami Beach, FL",
+                "lat": 25.7957987,
+                "lng": -80.1286959,
+                "uber_title": "The Setai",
+                "uber_subtitle": "2001 Collins Ave, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "PRIME_112",
+                "name": "Prime 112",
+                "address": "112 Ocean Dr, Miami Beach, FL",
+                "lat": 25.7699188,
+                "lng": -80.1332509,
+                "uber_title": "Prime 112",
+                "uber_subtitle": "112 Ocean Dr, Miami Beach, FL"
+            },
+            "est_distance_mi": 2,
+            "est_duration_min": 12.5,
+            "tags": []
+        },
+        {
+            "id": "S07",
+            "category": "short",
+            "label": "South Beach (Art Deco Welcome Center, Ocean Dr) -> AC Hotel by Marriott Miami Beach",
+            "origin": {
+                "place_id": "SOUTH_BEACH",
+                "name": "South Beach (Art Deco Welcome Center, Ocean Dr)",
+                "address": "1001 Ocean Dr, Miami Beach, FL",
+                "lat": 25.7802869,
+                "lng": -80.1303441,
+                "uber_title": "Art Deco Welcome Center",
+                "uber_subtitle": "1001 Ocean Dr, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "AC_HOTEL_MB",
+                "name": "AC Hotel by Marriott Miami Beach",
+                "address": "2912 Collins Ave, Miami Beach, FL",
+                "lat": 25.8054344,
+                "lng": -80.125378,
+                "uber_title": "AC Hotel Miami Beach",
+                "uber_subtitle": "2912 Collins Ave, Miami Beach, FL"
+            },
+            "est_distance_mi": 3,
+            "est_duration_min": 12.5,
+            "tags": []
+        },
+        {
+            "id": "S08",
+            "category": "short",
+            "label": "Playa Miami -> Victory Restaurant & Lounge",
+            "origin": {
+                "place_id": "PLAYA_MIAMI",
+                "name": "Playa Miami",
+                "address": "915 Lincoln Rd, Miami Beach, FL",
+                "lat": 25.7908851,
+                "lng": -80.137897,
+                "uber_title": "Playa",
+                "uber_subtitle": "915 Lincoln Rd, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "VICTORY",
+                "name": "Victory Restaurant & Lounge",
+                "address": "3252 NE 1st Ave Ste 107, Miami, FL",
+                "lat": 25.8073013,
+                "lng": -80.1933861,
+                "uber_title": "Victory Restaurant & Lounge",
+                "uber_subtitle": "3252 NE 1st Ave Ste 107, Miami, FL"
+            },
+            "est_distance_mi": 7,
+            "est_duration_min": 20,
+            "tags": []
+        },
+        {
+            "id": "L01",
+            "category": "long",
+            "label": "Bal Harbour Shops -> Brickell City Centre",
+            "origin": {
+                "place_id": "BAL_HARBOUR_SHOPS",
+                "name": "Bal Harbour Shops",
+                "address": "9700 Collins Ave, Bal Harbour, FL",
+                "lat": 25.8882233,
+                "lng": -80.1249794,
+                "uber_title": "Bal Harbour Shops",
+                "uber_subtitle": "9700 Collins Ave, Bal Harbour, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "BRICKELL_CITY_CENTRE",
+                "name": "Brickell City Centre",
+                "address": "701 S Miami Ave, Miami, FL",
+                "lat": 25.767392,
+                "lng": -80.1929123,
+                "uber_title": "Brickell City Centre",
+                "uber_subtitle": "701 S Miami Ave, Miami, FL"
+            },
+            "est_distance_mi": 15,
+            "est_duration_min": 37.5,
+            "tags": []
+        },
+        {
+            "id": "L02",
+            "category": "long",
+            "label": "Fontainebleau Miami Beach -> Taboo Miami by G5ive",
+            "origin": {
+                "place_id": "FONTAINEBLEAU",
+                "name": "Fontainebleau Miami Beach",
+                "address": "4441 Collins Ave, Miami Beach, FL",
+                "lat": 25.8180847,
+                "lng": -80.1220423,
+                "uber_title": "Fontainebleau Miami Beach",
+                "uber_subtitle": "4441 Collins Ave, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "TABOO",
+                "name": "Taboo Miami by G5ive",
+                "address": "337 NW 170th St, North Miami Beach, FL",
+                "lat": 25.9307745,
+                "lng": -80.2071351,
+                "uber_title": "Taboo Miami",
+                "uber_subtitle": "337 NW 170th St, North Miami Beach, FL"
+            },
+            "est_distance_mi": 17,
+            "est_duration_min": 37.5,
+            "tags": []
+        },
+        {
+            "id": "L03",
+            "category": "long",
+            "label": "Coconut Grove (CocoWalk) -> Tootsie's Cabaret",
+            "origin": {
+                "place_id": "COCONUT_GROVE",
+                "name": "Coconut Grove (CocoWalk)",
+                "address": "3015 Grand Ave, Coconut Grove, FL",
+                "lat": 25.7286438,
+                "lng": -80.2420384,
+                "uber_title": "CocoWalk",
+                "uber_subtitle": "3015 Grand Ave, Coconut Grove, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "TOOTSIES",
+                "name": "Tootsie's Cabaret",
+                "address": "150 NW 183rd St, Miami Gardens, FL",
+                "lat": 25.942665,
+                "lng": -80.204166,
+                "uber_title": "Tootsie's Cabaret",
+                "uber_subtitle": "150 NW 183rd St, Miami Gardens, FL"
+            },
+            "est_distance_mi": 22,
+            "est_duration_min": 42.5,
+            "tags": []
+        },
+        {
+            "id": "L04",
+            "category": "long",
+            "label": "South Beach (Art Deco Welcome Center, Ocean Dr) -> Seminole Hard Rock Hotel & Casino Hollywood",
+            "origin": {
+                "place_id": "SOUTH_BEACH",
+                "name": "South Beach (Art Deco Welcome Center, Ocean Dr)",
+                "address": "1001 Ocean Dr, Miami Beach, FL",
+                "lat": 25.7802869,
+                "lng": -80.1303441,
+                "uber_title": "Art Deco Welcome Center",
+                "uber_subtitle": "1001 Ocean Dr, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "HARD_ROCK",
+                "name": "Seminole Hard Rock Hotel & Casino Hollywood",
+                "address": "1 Seminole Way, Hollywood, FL",
+                "lat": 26.0517276,
+                "lng": -80.2112423,
+                "uber_title": "Seminole Hard Rock Hotel & Casino Hollywood, FL",
+                "uber_subtitle": "1 Seminole Way, Hollywood, FL"
+            },
+            "est_distance_mi": 25,
+            "est_duration_min": 50,
+            "tags": []
+        },
+        {
+            "id": "M01",
+            "category": "multi_stop",
+            "label": "Fontainebleau Miami Beach -> Brickell City Centre via Prime 112, E11EVEN Miami",
+            "origin": {
+                "place_id": "FONTAINEBLEAU",
+                "name": "Fontainebleau Miami Beach",
+                "address": "4441 Collins Ave, Miami Beach, FL",
+                "lat": 25.8180847,
+                "lng": -80.1220423,
+                "uber_title": "Fontainebleau Miami Beach",
+                "uber_subtitle": "4441 Collins Ave, Miami Beach, FL"
+            },
+            "stops": [
+                {
+                    "place_id": "PRIME_112",
+                    "name": "Prime 112",
+                    "address": "112 Ocean Dr, Miami Beach, FL",
+                    "lat": 25.7699188,
+                    "lng": -80.1332509,
+                    "uber_title": "Prime 112",
+                    "uber_subtitle": "112 Ocean Dr, Miami Beach, FL"
+                },
+                {
+                    "place_id": "E11EVEN",
+                    "name": "E11EVEN Miami",
+                    "address": "29 NE 11th St, Miami, FL",
+                    "lat": 25.7849481,
+                    "lng": -80.1935402,
+                    "uber_title": "E11EVEN Miami",
+                    "uber_subtitle": "29 NE 11th St, Miami, FL"
+                }
+            ],
+            "destination": {
+                "place_id": "BRICKELL_CITY_CENTRE",
+                "name": "Brickell City Centre",
+                "address": "701 S Miami Ave, Miami, FL",
+                "lat": 25.767392,
+                "lng": -80.1929123,
+                "uber_title": "Brickell City Centre",
+                "uber_subtitle": "701 S Miami Ave, Miami, FL"
+            },
+            "est_distance_mi": 14,
+            "est_duration_min": 38,
+            "tags": []
+        },
+        {
+            "id": "M02",
+            "category": "multi_stop",
+            "label": "Bal Harbour Shops -> South Beach (Art Deco Welcome Center, Ocean Dr) via Miami Design District (Palm Court), Victory Restaurant & Lounge",
+            "origin": {
+                "place_id": "BAL_HARBOUR_SHOPS",
+                "name": "Bal Harbour Shops",
+                "address": "9700 Collins Ave, Bal Harbour, FL",
+                "lat": 25.8882233,
+                "lng": -80.1249794,
+                "uber_title": "Bal Harbour Shops",
+                "uber_subtitle": "9700 Collins Ave, Bal Harbour, FL"
+            },
+            "stops": [
+                {
+                    "place_id": "DESIGN_DISTRICT",
+                    "name": "Miami Design District (Palm Court)",
+                    "address": "3841 NE 2nd Ave, Miami, FL",
+                    "lat": 25.8127406,
+                    "lng": -80.1910272,
+                    "uber_title": "Miami Design District",
+                    "uber_subtitle": "3841 NE 2nd Ave, Miami, FL"
+                },
+                {
+                    "place_id": "VICTORY",
+                    "name": "Victory Restaurant & Lounge",
+                    "address": "3252 NE 1st Ave Ste 107, Miami, FL",
+                    "lat": 25.8073013,
+                    "lng": -80.1933861,
+                    "uber_title": "Victory Restaurant & Lounge",
+                    "uber_subtitle": "3252 NE 1st Ave Ste 107, Miami, FL"
+                }
+            ],
+            "destination": {
+                "place_id": "SOUTH_BEACH",
+                "name": "South Beach (Art Deco Welcome Center, Ocean Dr)",
+                "address": "1001 Ocean Dr, Miami Beach, FL",
+                "lat": 25.7802869,
+                "lng": -80.1303441,
+                "uber_title": "Art Deco Welcome Center",
+                "uber_subtitle": "1001 Ocean Dr, Miami Beach, FL"
+            },
+            "est_distance_mi": 18,
+            "est_duration_min": 50,
+            "tags": []
+        },
+        {
+            "id": "M03",
+            "category": "multi_stop",
+            "label": "Miami International Airport (MIA) -> Fontainebleau Miami Beach via Brickell City Centre, Prime 112",
+            "origin": {
+                "place_id": "MIA",
+                "name": "Miami International Airport (MIA)",
+                "address": "2100 NW 42nd Ave, Miami, FL",
+                "lat": 25.7949789,
+                "lng": -80.2867234,
+                "uber_title": "Miami International Airport (MIA)",
+                "uber_subtitle": "2100 NW 42nd Ave, Miami, FL"
+            },
+            "stops": [
+                {
+                    "place_id": "BRICKELL_CITY_CENTRE",
+                    "name": "Brickell City Centre",
+                    "address": "701 S Miami Ave, Miami, FL",
+                    "lat": 25.767392,
+                    "lng": -80.1929123,
+                    "uber_title": "Brickell City Centre",
+                    "uber_subtitle": "701 S Miami Ave, Miami, FL"
+                },
+                {
+                    "place_id": "PRIME_112",
+                    "name": "Prime 112",
+                    "address": "112 Ocean Dr, Miami Beach, FL",
+                    "lat": 25.7699188,
+                    "lng": -80.1332509,
+                    "uber_title": "Prime 112",
+                    "uber_subtitle": "112 Ocean Dr, Miami Beach, FL"
+                }
+            ],
+            "destination": {
+                "place_id": "FONTAINEBLEAU",
+                "name": "Fontainebleau Miami Beach",
+                "address": "4441 Collins Ave, Miami Beach, FL",
+                "lat": 25.8180847,
+                "lng": -80.1220423,
+                "uber_title": "Fontainebleau Miami Beach",
+                "uber_subtitle": "4441 Collins Ave, Miami Beach, FL"
+            },
+            "est_distance_mi": 22,
+            "est_duration_min": 60,
+            "tags": [
+                "airport_pickup"
+            ]
+        },
+        {
+            "id": "M04",
+            "category": "multi_stop",
+            "label": "Aventura Mall -> Prime 112 via Bal Harbour Shops, Playa Miami",
+            "origin": {
+                "place_id": "AVENTURA_MALL",
+                "name": "Aventura Mall",
+                "address": "19501 Biscayne Blvd, Aventura, FL",
+                "lat": 25.9585957,
+                "lng": -80.1455534,
+                "uber_title": "Aventura Mall",
+                "uber_subtitle": "19501 Biscayne Blvd, Aventura, FL"
+            },
+            "stops": [
+                {
+                    "place_id": "BAL_HARBOUR_SHOPS",
+                    "name": "Bal Harbour Shops",
+                    "address": "9700 Collins Ave, Bal Harbour, FL",
+                    "lat": 25.8882233,
+                    "lng": -80.1249794,
+                    "uber_title": "Bal Harbour Shops",
+                    "uber_subtitle": "9700 Collins Ave, Bal Harbour, FL"
+                },
+                {
+                    "place_id": "PLAYA_MIAMI",
+                    "name": "Playa Miami",
+                    "address": "915 Lincoln Rd, Miami Beach, FL",
+                    "lat": 25.7908851,
+                    "lng": -80.137897,
+                    "uber_title": "Playa",
+                    "uber_subtitle": "915 Lincoln Rd, Miami Beach, FL"
+                }
+            ],
+            "destination": {
+                "place_id": "PRIME_112",
+                "name": "Prime 112",
+                "address": "112 Ocean Dr, Miami Beach, FL",
+                "lat": 25.7699188,
+                "lng": -80.1332509,
+                "uber_title": "Prime 112",
+                "uber_subtitle": "112 Ocean Dr, Miami Beach, FL"
+            },
+            "est_distance_mi": 17,
+            "est_duration_min": 50,
+            "tags": []
+        },
+        {
+            "id": "M05",
+            "category": "multi_stop",
+            "label": "Tootsie's Cabaret -> Booby Trap on the River via Taboo Miami by G5ive",
+            "origin": {
+                "place_id": "TOOTSIES",
+                "name": "Tootsie's Cabaret",
+                "address": "150 NW 183rd St, Miami Gardens, FL",
+                "lat": 25.942665,
+                "lng": -80.204166,
+                "uber_title": "Tootsie's Cabaret",
+                "uber_subtitle": "150 NW 183rd St, Miami Gardens, FL"
+            },
+            "stops": [
+                {
+                    "place_id": "TABOO",
+                    "name": "Taboo Miami by G5ive",
+                    "address": "337 NW 170th St, North Miami Beach, FL",
+                    "lat": 25.9307745,
+                    "lng": -80.2071351,
+                    "uber_title": "Taboo Miami",
+                    "uber_subtitle": "337 NW 170th St, North Miami Beach, FL"
+                }
+            ],
+            "destination": {
+                "place_id": "BOOBY_TRAP",
+                "name": "Booby Trap on the River",
+                "address": "3615 NW South River Dr, Miami, FL",
+                "lat": 25.8028933,
+                "lng": -80.2550413,
+                "uber_title": "Booby Trap on the River",
+                "uber_subtitle": "3615 NW South River Dr, Miami, FL"
+            },
+            "est_distance_mi": 24,
+            "est_duration_min": 55,
+            "tags": []
+        },
+        {
+            "id": "AP01",
+            "category": "airport_pickup",
+            "label": "Miami International Airport (MIA) -> Brickell City Centre",
+            "origin": {
+                "place_id": "MIA",
+                "name": "Miami International Airport (MIA)",
+                "address": "2100 NW 42nd Ave, Miami, FL",
+                "lat": 25.7949789,
+                "lng": -80.2867234,
+                "uber_title": "Miami International Airport (MIA)",
+                "uber_subtitle": "2100 NW 42nd Ave, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "BRICKELL_CITY_CENTRE",
+                "name": "Brickell City Centre",
+                "address": "701 S Miami Ave, Miami, FL",
+                "lat": 25.767392,
+                "lng": -80.1929123,
+                "uber_title": "Brickell City Centre",
+                "uber_subtitle": "701 S Miami Ave, Miami, FL"
+            },
+            "est_distance_mi": 9,
+            "est_duration_min": 20,
+            "tags": [
+                "airport_pickup"
+            ]
+        },
+        {
+            "id": "AP02",
+            "category": "airport_pickup",
+            "label": "Miami International Airport (MIA) -> Miami Design District (Palm Court)",
+            "origin": {
+                "place_id": "MIA",
+                "name": "Miami International Airport (MIA)",
+                "address": "2100 NW 42nd Ave, Miami, FL",
+                "lat": 25.7949789,
+                "lng": -80.2867234,
+                "uber_title": "Miami International Airport (MIA)",
+                "uber_subtitle": "2100 NW 42nd Ave, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "DESIGN_DISTRICT",
+                "name": "Miami Design District (Palm Court)",
+                "address": "3841 NE 2nd Ave, Miami, FL",
+                "lat": 25.8127406,
+                "lng": -80.1910272,
+                "uber_title": "Miami Design District",
+                "uber_subtitle": "3841 NE 2nd Ave, Miami, FL"
+            },
+            "est_distance_mi": 8,
+            "est_duration_min": 20,
+            "tags": [
+                "airport_pickup"
+            ]
+        },
+        {
+            "id": "AP03",
+            "category": "airport_pickup",
+            "label": "Miami International Airport (MIA) -> Fontainebleau Miami Beach",
+            "origin": {
+                "place_id": "MIA",
+                "name": "Miami International Airport (MIA)",
+                "address": "2100 NW 42nd Ave, Miami, FL",
+                "lat": 25.7949789,
+                "lng": -80.2867234,
+                "uber_title": "Miami International Airport (MIA)",
+                "uber_subtitle": "2100 NW 42nd Ave, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "FONTAINEBLEAU",
+                "name": "Fontainebleau Miami Beach",
+                "address": "4441 Collins Ave, Miami Beach, FL",
+                "lat": 25.8180847,
+                "lng": -80.1220423,
+                "uber_title": "Fontainebleau Miami Beach",
+                "uber_subtitle": "4441 Collins Ave, Miami Beach, FL"
+            },
+            "est_distance_mi": 12,
+            "est_duration_min": 27.5,
+            "tags": [
+                "airport_pickup"
+            ]
+        },
+        {
+            "id": "AP04",
+            "category": "airport_pickup",
+            "label": "Miami International Airport (MIA) -> South Beach (Art Deco Welcome Center, Ocean Dr)",
+            "origin": {
+                "place_id": "MIA",
+                "name": "Miami International Airport (MIA)",
+                "address": "2100 NW 42nd Ave, Miami, FL",
+                "lat": 25.7949789,
+                "lng": -80.2867234,
+                "uber_title": "Miami International Airport (MIA)",
+                "uber_subtitle": "2100 NW 42nd Ave, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "SOUTH_BEACH",
+                "name": "South Beach (Art Deco Welcome Center, Ocean Dr)",
+                "address": "1001 Ocean Dr, Miami Beach, FL",
+                "lat": 25.7802869,
+                "lng": -80.1303441,
+                "uber_title": "Art Deco Welcome Center",
+                "uber_subtitle": "1001 Ocean Dr, Miami Beach, FL"
+            },
+            "est_distance_mi": 13.5,
+            "est_duration_min": 27.5,
+            "tags": [
+                "airport_pickup"
+            ]
+        },
+        {
+            "id": "AP05",
+            "category": "airport_pickup",
+            "label": "Fort Lauderdale-Hollywood International Airport (FLL) -> Brickell City Centre",
+            "origin": {
+                "place_id": "FLL",
+                "name": "Fort Lauderdale-Hollywood International Airport (FLL)",
+                "address": "100 Terminal Dr, Fort Lauderdale, FL",
+                "lat": 26.072017,
+                "lng": -80.1509967,
+                "uber_title": "Fort Lauderdale-Hollywood International Airport (FLL)",
+                "uber_subtitle": "100 Terminal Dr, Fort Lauderdale, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "BRICKELL_CITY_CENTRE",
+                "name": "Brickell City Centre",
+                "address": "701 S Miami Ave, Miami, FL",
+                "lat": 25.767392,
+                "lng": -80.1929123,
+                "uber_title": "Brickell City Centre",
+                "uber_subtitle": "701 S Miami Ave, Miami, FL"
+            },
+            "est_distance_mi": 29,
+            "est_duration_min": 45,
+            "tags": [
+                "airport_pickup",
+                "outer"
+            ]
+        },
+        {
+            "id": "AD01",
+            "category": "airport_dropoff",
+            "label": "Victory Restaurant & Lounge -> Miami International Airport (MIA)",
+            "origin": {
+                "place_id": "VICTORY",
+                "name": "Victory Restaurant & Lounge",
+                "address": "3252 NE 1st Ave Ste 107, Miami, FL",
+                "lat": 25.8073013,
+                "lng": -80.1933861,
+                "uber_title": "Victory Restaurant & Lounge",
+                "uber_subtitle": "3252 NE 1st Ave Ste 107, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "MIA",
+                "name": "Miami International Airport (MIA)",
+                "address": "2100 NW 42nd Ave, Miami, FL",
+                "lat": 25.7949789,
+                "lng": -80.2867234,
+                "uber_title": "Miami International Airport (MIA)",
+                "uber_subtitle": "2100 NW 42nd Ave, Miami, FL"
+            },
+            "est_distance_mi": 8,
+            "est_duration_min": 20,
+            "tags": [
+                "airport_dropoff"
+            ]
+        },
+        {
+            "id": "AD02",
+            "category": "airport_dropoff",
+            "label": "Brickell City Centre -> Miami International Airport (MIA)",
+            "origin": {
+                "place_id": "BRICKELL_CITY_CENTRE",
+                "name": "Brickell City Centre",
+                "address": "701 S Miami Ave, Miami, FL",
+                "lat": 25.767392,
+                "lng": -80.1929123,
+                "uber_title": "Brickell City Centre",
+                "uber_subtitle": "701 S Miami Ave, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "MIA",
+                "name": "Miami International Airport (MIA)",
+                "address": "2100 NW 42nd Ave, Miami, FL",
+                "lat": 25.7949789,
+                "lng": -80.2867234,
+                "uber_title": "Miami International Airport (MIA)",
+                "uber_subtitle": "2100 NW 42nd Ave, Miami, FL"
+            },
+            "est_distance_mi": 9,
+            "est_duration_min": 20,
+            "tags": [
+                "airport_dropoff"
+            ]
+        },
+        {
+            "id": "AD03",
+            "category": "airport_dropoff",
+            "label": "Fontainebleau Miami Beach -> Miami International Airport (MIA)",
+            "origin": {
+                "place_id": "FONTAINEBLEAU",
+                "name": "Fontainebleau Miami Beach",
+                "address": "4441 Collins Ave, Miami Beach, FL",
+                "lat": 25.8180847,
+                "lng": -80.1220423,
+                "uber_title": "Fontainebleau Miami Beach",
+                "uber_subtitle": "4441 Collins Ave, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "MIA",
+                "name": "Miami International Airport (MIA)",
+                "address": "2100 NW 42nd Ave, Miami, FL",
+                "lat": 25.7949789,
+                "lng": -80.2867234,
+                "uber_title": "Miami International Airport (MIA)",
+                "uber_subtitle": "2100 NW 42nd Ave, Miami, FL"
+            },
+            "est_distance_mi": 12,
+            "est_duration_min": 27.5,
+            "tags": [
+                "airport_dropoff"
+            ]
+        },
+        {
+            "id": "AD04",
+            "category": "airport_dropoff",
+            "label": "Bal Harbour Shops -> Miami International Airport (MIA)",
+            "origin": {
+                "place_id": "BAL_HARBOUR_SHOPS",
+                "name": "Bal Harbour Shops",
+                "address": "9700 Collins Ave, Bal Harbour, FL",
+                "lat": 25.8882233,
+                "lng": -80.1249794,
+                "uber_title": "Bal Harbour Shops",
+                "uber_subtitle": "9700 Collins Ave, Bal Harbour, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "MIA",
+                "name": "Miami International Airport (MIA)",
+                "address": "2100 NW 42nd Ave, Miami, FL",
+                "lat": 25.7949789,
+                "lng": -80.2867234,
+                "uber_title": "Miami International Airport (MIA)",
+                "uber_subtitle": "2100 NW 42nd Ave, Miami, FL"
+            },
+            "est_distance_mi": 17.5,
+            "est_duration_min": 37.5,
+            "tags": [
+                "airport_dropoff"
+            ]
+        },
+        {
+            "id": "O01",
+            "category": "outbound",
+            "label": "South Beach (Art Deco Welcome Center, Ocean Dr) -> Downtown Fort Lauderdale (Broward Center for the Performing Arts)",
+            "origin": {
+                "place_id": "SOUTH_BEACH",
+                "name": "South Beach (Art Deco Welcome Center, Ocean Dr)",
+                "address": "1001 Ocean Dr, Miami Beach, FL",
+                "lat": 25.7802869,
+                "lng": -80.1303441,
+                "uber_title": "Art Deco Welcome Center",
+                "uber_subtitle": "1001 Ocean Dr, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "FORT_LAUDERDALE",
+                "name": "Downtown Fort Lauderdale (Broward Center for the Performing Arts)",
+                "address": "201 SW 5th Ave, Fort Lauderdale, FL",
+                "lat": 26.120307,
+                "lng": -80.148573,
+                "uber_title": "Broward Center for the Performing Arts",
+                "uber_subtitle": "201 SW 5th Ave, Fort Lauderdale, FL"
+            },
+            "est_distance_mi": 32.5,
+            "est_duration_min": 50,
+            "tags": []
+        },
+        {
+            "id": "O02",
+            "category": "outbound",
+            "label": "Miami Beach City Hall -> Homestead City Hall",
+            "origin": {
+                "place_id": "MIAMI_BEACH",
+                "name": "Miami Beach City Hall",
+                "address": "1700 Convention Center Dr, Miami Beach, FL",
+                "lat": 25.7927683,
+                "lng": -80.1353862,
+                "uber_title": "Miami Beach City Hall",
+                "uber_subtitle": "1700 Convention Center Dr, Miami Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "HOMESTEAD",
+                "name": "Homestead City Hall",
+                "address": "100 Civic Ct, Homestead, FL",
+                "lat": 25.4721869,
+                "lng": -80.4756547,
+                "uber_title": "City of Homestead Government",
+                "uber_subtitle": "100 Civic Ct, Homestead, FL"
+            },
+            "est_distance_mi": 45,
+            "est_duration_min": 65,
+            "tags": []
+        },
+        {
+            "id": "O03",
+            "category": "outbound",
+            "label": "Brickell City Centre -> Mizner Park, Boca Raton",
+            "origin": {
+                "place_id": "BRICKELL_CITY_CENTRE",
+                "name": "Brickell City Centre",
+                "address": "701 S Miami Ave, Miami, FL",
+                "lat": 25.767392,
+                "lng": -80.1929123,
+                "uber_title": "Brickell City Centre",
+                "uber_subtitle": "701 S Miami Ave, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "BOCA_RATON",
+                "name": "Mizner Park, Boca Raton",
+                "address": "327 Plz Real Ste 315, Boca Raton, FL",
+                "lat": 26.3551912,
+                "lng": -80.0857115,
+                "uber_title": "Mizner Park",
+                "uber_subtitle": "327 Plz Real Ste 315, Boca Raton, FL"
+            },
+            "est_distance_mi": 47.5,
+            "est_duration_min": 62.5,
+            "tags": []
+        },
+        {
+            "id": "O04",
+            "category": "outbound",
+            "label": "Bayfront Park, Downtown Miami -> Rosemary Square, West Palm Beach",
+            "origin": {
+                "place_id": "DOWNTOWN_MIAMI",
+                "name": "Bayfront Park, Downtown Miami",
+                "address": "301 Biscayne Blvd, Miami, FL",
+                "lat": 25.7772993,
+                "lng": -80.1883999,
+                "uber_title": "Bayfront Park",
+                "uber_subtitle": "301 Biscayne Blvd, Miami, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "WEST_PALM_BEACH",
+                "name": "Rosemary Square, West Palm Beach",
+                "address": "700 S Rosemary Ave, West Palm Beach, FL",
+                "lat": 26.707159,
+                "lng": -80.057072,
+                "uber_title": "Cityplace",
+                "uber_subtitle": "700 S Rosemary Ave, West Palm Beach, FL"
+            },
+            "est_distance_mi": 72.5,
+            "est_duration_min": 87.5,
+            "tags": []
+        },
+        {
+            "id": "I01",
+            "category": "inbound",
+            "label": "Davie Town Hall -> Bayfront Park, Downtown Miami",
+            "origin": {
+                "place_id": "DAVIE",
+                "name": "Davie Town Hall",
+                "address": "6591 Orange Dr, Davie, FL",
+                "lat": 26.0657563,
+                "lng": -80.2348057,
+                "uber_title": "Davie Town Hall",
+                "uber_subtitle": "6591 Orange Dr, Davie, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "DOWNTOWN_MIAMI",
+                "name": "Bayfront Park, Downtown Miami",
+                "address": "301 Biscayne Blvd, Miami, FL",
+                "lat": 25.7772993,
+                "lng": -80.1883999,
+                "uber_title": "Bayfront Park",
+                "uber_subtitle": "301 Biscayne Blvd, Miami, FL"
+            },
+            "est_distance_mi": 23,
+            "est_duration_min": 37.5,
+            "tags": [
+                "outer"
+            ]
+        },
+        {
+            "id": "I02",
+            "category": "inbound",
+            "label": "Downtown Fort Lauderdale (Broward Center for the Performing Arts) -> South Beach (Art Deco Welcome Center, Ocean Dr)",
+            "origin": {
+                "place_id": "FORT_LAUDERDALE",
+                "name": "Downtown Fort Lauderdale (Broward Center for the Performing Arts)",
+                "address": "201 SW 5th Ave, Fort Lauderdale, FL",
+                "lat": 26.120307,
+                "lng": -80.148573,
+                "uber_title": "Broward Center for the Performing Arts",
+                "uber_subtitle": "201 SW 5th Ave, Fort Lauderdale, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "SOUTH_BEACH",
+                "name": "South Beach (Art Deco Welcome Center, Ocean Dr)",
+                "address": "1001 Ocean Dr, Miami Beach, FL",
+                "lat": 25.7802869,
+                "lng": -80.1303441,
+                "uber_title": "Art Deco Welcome Center",
+                "uber_subtitle": "1001 Ocean Dr, Miami Beach, FL"
+            },
+            "est_distance_mi": 32.5,
+            "est_duration_min": 50,
+            "tags": [
+                "outer"
+            ]
+        },
+        {
+            "id": "I03",
+            "category": "inbound",
+            "label": "Homestead City Hall -> Bayfront Park, Downtown Miami",
+            "origin": {
+                "place_id": "HOMESTEAD",
+                "name": "Homestead City Hall",
+                "address": "100 Civic Ct, Homestead, FL",
+                "lat": 25.4721869,
+                "lng": -80.4756547,
+                "uber_title": "City of Homestead Government",
+                "uber_subtitle": "100 Civic Ct, Homestead, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "DOWNTOWN_MIAMI",
+                "name": "Bayfront Park, Downtown Miami",
+                "address": "301 Biscayne Blvd, Miami, FL",
+                "lat": 25.7772993,
+                "lng": -80.1883999,
+                "uber_title": "Bayfront Park",
+                "uber_subtitle": "301 Biscayne Blvd, Miami, FL"
+            },
+            "est_distance_mi": 37.5,
+            "est_duration_min": 55,
+            "tags": [
+                "outer"
+            ]
+        },
+        {
+            "id": "I04",
+            "category": "inbound",
+            "label": "Mizner Park, Boca Raton -> Brickell City Centre",
+            "origin": {
+                "place_id": "BOCA_RATON",
+                "name": "Mizner Park, Boca Raton",
+                "address": "327 Plz Real Ste 315, Boca Raton, FL",
+                "lat": 26.3551912,
+                "lng": -80.0857115,
+                "uber_title": "Mizner Park",
+                "uber_subtitle": "327 Plz Real Ste 315, Boca Raton, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "BRICKELL_CITY_CENTRE",
+                "name": "Brickell City Centre",
+                "address": "701 S Miami Ave, Miami, FL",
+                "lat": 25.767392,
+                "lng": -80.1929123,
+                "uber_title": "Brickell City Centre",
+                "uber_subtitle": "701 S Miami Ave, Miami, FL"
+            },
+            "est_distance_mi": 47.5,
+            "est_duration_min": 62.5,
+            "tags": [
+                "outer"
+            ]
+        },
+        {
+            "id": "I05",
+            "category": "inbound",
+            "label": "Rosemary Square, West Palm Beach -> Bayfront Park, Downtown Miami",
+            "origin": {
+                "place_id": "WEST_PALM_BEACH",
+                "name": "Rosemary Square, West Palm Beach",
+                "address": "700 S Rosemary Ave, West Palm Beach, FL",
+                "lat": 26.707159,
+                "lng": -80.057072,
+                "uber_title": "Cityplace",
+                "uber_subtitle": "700 S Rosemary Ave, West Palm Beach, FL"
+            },
+            "stops": [],
+            "destination": {
+                "place_id": "DOWNTOWN_MIAMI",
+                "name": "Bayfront Park, Downtown Miami",
+                "address": "301 Biscayne Blvd, Miami, FL",
+                "lat": 25.7772993,
+                "lng": -80.1883999,
+                "uber_title": "Bayfront Park",
+                "uber_subtitle": "301 Biscayne Blvd, Miami, FL"
+            },
+            "est_distance_mi": 72.5,
+            "est_duration_min": 87.5,
+            "tags": [
+                "outer"
+            ]
+        }
+    ],
+    "uber_matching": "Type `uber.search_text` into Uber's pickup/drop-off box, then select the suggestion whose title == `uber.pick_title` AND subtitle == `uber.pick_subtitle`. Never just take the first suggestion - see `uber.avoid`. Names/addresses/place_ids taken from Uber's own location search on 2026-10-07; place_ids are Uber-internal and may change."
+}

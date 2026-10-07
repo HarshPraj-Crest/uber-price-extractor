@@ -96,6 +96,7 @@ def open_session(session_name: str, proxy: str | None = None):
             "storage_state": str(session_file),
             "viewport": {"width": 1280, "height": 800},
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+            "timezone_id": "America/New_York",
         }
         if parsed_proxy:
             context_kwargs["proxy"] = parsed_proxy

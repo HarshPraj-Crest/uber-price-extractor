@@ -292,7 +292,7 @@ A reference template is available at `data/accounts_example.csv`:
 ```csv
 account_name,phone_number,profile_dir,status,last_used,user_agent,proxy,notes
 Account_1,+15551234567,browser_profile_account1,active,,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",,Primary account
-Account_2,+15559876543,browser_profile_account2,active,,"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",http://user:pass@proxy.example.com:8080,Secondary account with proxy
+Account_2,+15559876543,browser_profile_account2,active,,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",http://user:pass@proxy.example.com:8080,Secondary account with proxy
 ```
 
 ---

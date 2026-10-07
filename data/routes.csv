@@ -1,36 +1,36 @@
 route_id,source,destination,category,stops,distance_mi,duration_min,notes
 1,Brickell City Centre,Kaseya Center,short,,2,11.5,
-2,Fontainebleau Miami Beach,LIV Nightclub,short,,0.5,3.5,
+2,Fontainebleau Miami Beach,LIV Nightclub,short,,0.5,3.5,same_building
 3,Prime 112,Papi Steak,short,,1,7.5,
 4,E11EVEN Miami,Kaseya Center,short,,1,7.5,
-5,Design District,Wynwood Walls,short,,2,9.5,
-6,Setai Miami Beach,Prime 112,short,,2,12.5,
-7,South Beach,AC Hotel Miami Beach,short,,3,12.5,
+5,Miami Design District (Palm Court),Wynwood Walls,short,,2,9.5,
+6,The Setai Miami Beach,Prime 112,short,,2,12.5,
+7,"South Beach (Art Deco Welcome Center, Ocean Dr)",AC Hotel by Marriott Miami Beach,short,,3,12.5,
 8,Playa Miami,Victory Restaurant & Lounge,short,,7,20,
-9,Bal Harbour,Brickell City Centre,long,,15,37.5,
-10,Fontainebleau Miami Beach,Taboo Miami,long,,17,37.5,
-11,Coconut Grove,Tootsie's Cabaret,long,,22,42.5,
-12,South Beach,Hard Rock Casino,long,,25,50,
-13,Fontainebleau,Brickell,multi_stop,Prime 112|E11EVEN,14,38,
-14,Bal Harbour,South Beach,multi_stop,Design District|Victory,18,50,
-15,MIA Airport,Fontainebleau,multi_stop,Brickell|Prime 112,22,60,airport pickup
+9,Bal Harbour Shops,Brickell City Centre,long,,15,37.5,
+10,Fontainebleau Miami Beach,Taboo Miami by G5ive,long,,17,37.5,
+11,Coconut Grove (CocoWalk),Tootsie's Cabaret,long,,22,42.5,
+12,"South Beach (Art Deco Welcome Center, Ocean Dr)",Seminole Hard Rock Hotel & Casino Hollywood,long,,25,50,
+13,Fontainebleau Miami Beach,Brickell City Centre,multi_stop,Prime 112|E11EVEN Miami,14,38,
+14,Bal Harbour Shops,"South Beach (Art Deco Welcome Center, Ocean Dr)",multi_stop,Miami Design District (Palm Court)|Victory Restaurant & Lounge,18,50,
+15,Miami International Airport (MIA),Fontainebleau Miami Beach,multi_stop,Brickell City Centre|Prime 112,22,60,airport_pickup
 16,Aventura Mall,Prime 112,multi_stop,Bal Harbour Shops|Playa Miami,17,50,
-17,Tootsie's,Booby Trap on the River,multi_stop,Taboo,24,55,
-18,Miami International Airport,Brickell,airport_pickup,,9,20,
-19,Miami International Airport,Design District,airport_pickup,,8,20,
-20,Miami International Airport,Fontainebleau Miami Beach,airport_pickup,,12,27.5,
-21,Miami International Airport,South Beach,airport_pickup,,13.5,27.5,
-22,Fort Lauderdale Airport (FLL),Brickell,airport_pickup,,29,45,outer
-23,Victory Restaurant,Miami International Airport,airport_dropoff,,8,20,
-24,Brickell City Centre,Miami International Airport,airport_dropoff,,9,20,
-25,Fontainebleau,Miami International Airport,airport_dropoff,,12,27.5,
-26,Bal Harbour Shops,Miami International Airport,airport_dropoff,,17.5,37.5,
-27,South Beach,Fort Lauderdale,outbound,,32.5,50,
-28,Miami Beach,Homestead,outbound,,45,65,
-29,Brickell,Boca Raton,outbound,,47.5,62.5,
-30,Miami,West Palm Beach,outbound,,72.5,87.5,
-31,Davie,Miami,inbound,,23,37.5,outer
-32,Fort Lauderdale,South Beach,inbound,,32.5,50,outer
-33,Homestead,Downtown Miami,inbound,,37.5,55,outer
-34,Boca Raton,Brickell,inbound,,47.5,62.5,outer
-35,West Palm Beach,Miami,inbound,,72.5,87.5,outer
+17,Tootsie's Cabaret,Booby Trap on the River,multi_stop,Taboo Miami by G5ive,24,55,
+18,Miami International Airport (MIA),Brickell City Centre,airport_pickup,,9,20,airport_pickup
+19,Miami International Airport (MIA),Miami Design District (Palm Court),airport_pickup,,8,20,airport_pickup
+20,Miami International Airport (MIA),Fontainebleau Miami Beach,airport_pickup,,12,27.5,airport_pickup
+21,Miami International Airport (MIA),"South Beach (Art Deco Welcome Center, Ocean Dr)",airport_pickup,,13.5,27.5,airport_pickup
+22,Fort Lauderdale-Hollywood International Airport (FLL),Brickell City Centre,airport_pickup,,29,45,"airport_pickup, outer"
+23,Victory Restaurant & Lounge,Miami International Airport (MIA),airport_dropoff,,8,20,airport_dropoff
+24,Brickell City Centre,Miami International Airport (MIA),airport_dropoff,,9,20,airport_dropoff
+25,Fontainebleau Miami Beach,Miami International Airport (MIA),airport_dropoff,,12,27.5,airport_dropoff
+26,Bal Harbour Shops,Miami International Airport (MIA),airport_dropoff,,17.5,37.5,airport_dropoff
+27,"South Beach (Art Deco Welcome Center, Ocean Dr)",Downtown Fort Lauderdale (Broward Center for the Performing Arts),outbound,,32.5,50,
+28,Miami Beach City Hall,Homestead City Hall,outbound,,45,65,
+29,Brickell City Centre,"Mizner Park, Boca Raton",outbound,,47.5,62.5,
+30,"Bayfront Park, Downtown Miami","Rosemary Square, West Palm Beach",outbound,,72.5,87.5,
+31,Davie Town Hall,"Bayfront Park, Downtown Miami",inbound,,23,37.5,outer
+32,Downtown Fort Lauderdale (Broward Center for the Performing Arts),"South Beach (Art Deco Welcome Center, Ocean Dr)",inbound,,32.5,50,outer
+33,Homestead City Hall,"Bayfront Park, Downtown Miami",inbound,,37.5,55,outer
+34,"Mizner Park, Boca Raton",Brickell City Centre,inbound,,47.5,62.5,outer
+35,"Rosemary Square, West Palm Beach","Bayfront Park, Downtown Miami",inbound,,72.5,87.5,outer

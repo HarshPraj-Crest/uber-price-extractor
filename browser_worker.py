@@ -101,6 +101,7 @@ class BrowserConfig:
     viewport: dict[str, int] | None = None
     extra_http_headers: dict[str, str] | None = None
     proxy: str | dict | None = None
+    timezone_id: str = "America/New_York"
 
 
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
@@ -197,6 +198,7 @@ class PlaywrightWorker:
         options = dict(
             user_data_dir=str(cfg.profile_dir),
             headless=cfg.headless,
+            timezone_id=cfg.timezone_id or "America/New_York",
         )
         if cfg.viewport is not None:
             options["viewport"] = cfg.viewport

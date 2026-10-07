@@ -7,6 +7,7 @@ browser_profile/
 browser_profile*/
 *_profile/
 
+
 # Generated run output: screenshots show the account and nearby saved places,
 # logs contain place searches, page URLs and diagnostic network details,
 # results contain the routes and prices you fetched.

@@ -63,8 +63,9 @@ def save_session_as_account(session_name: str, account_name: str):
     if account_name in existing_names:
         print(f"⚠️  {account_name} already exists in CSV. Skipping CSV update.")
     else:
-        # Add new row
-        new_row = [account_name, "", str(profile_dir), "active", "", "", "", f"From {session_name}.json"]
+        # Add new row with default Windows User-Agent
+        win_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
+        new_row = [account_name, "", str(profile_dir), "active", "", win_ua, "", f"From {session_name}.json"]
         # Adjust columns if needed
         while len(new_row) < len(headers):
             new_row.append("")
