@@ -566,10 +566,67 @@ def selected_location_from_url(page: Page, role: str = "pickup", stop_index: int
         place_id=data.get("id"), provider=data.get("provider"))
 
 
+def select_city(page: Page, city: str = "Miami", verbose: bool = True,
+                human_delays: bool = True, delay_scale: float = 1.0) -> bool:
+    """
+    Check if Uber's pickup dropdown displays 'Search in a different city' option.
+    If present, click it, type `city` (default: 'Miami'), select the city suggestion,
+    and wait for Uber to switch the city context to the target region.
+    Returns True if city selection was performed, False otherwise.
+    """
+    diff_city_item = page.locator('text="Search in a different city"').first
+    if not diff_city_item.is_visible():
+        return False
+
+    if verbose:
+        print(f"\n[city] 'Search in a different city' option detected. Switching city to '{city}'...")
+
+    try:
+        diff_city_item.click(timeout=5000)
+    except PlaywrightError:
+        diff_city_item.click(force=True)
+
+    human_pause(0.6, 1.2, scale=delay_scale, enabled=human_delays)
+
+    city_input = page.get_by_placeholder("Enter a city")
+    if not city_input.is_visible():
+        city_input = page.locator('input[placeholder*="city" i]').first
+
+    try:
+        city_input.wait_for(state="visible", timeout=10_000)
+    except PlaywrightError:
+        return False
+
+    city_input.fill("")
+    if human_delays and delay_scale > 0:
+        for char in city:
+            city_input.press(char)
+            time.sleep(random.uniform(0.06, 0.15) * delay_scale)
+    else:
+        city_input.press_sequentially(city, delay=60)
+
+    human_pause(1.0, 1.8, scale=delay_scale, enabled=human_delays)
+
+    city_option = page.locator('[role="listbox"] li, [data-testid="pudo-result"], [role="option"]').filter(
+        has_text=re.compile(re.escape(city), re.I)).first
+
+    try:
+        city_option.wait_for(state="visible", timeout=10_000)
+        if verbose:
+            txt = city_option.inner_text().replace('\n', ' ')
+            print(f"  -> selected city: {txt}")
+        city_option.click(timeout=5000)
+    except PlaywrightError:
+        city_option.click(force=True)
+
+    human_pause(1.5, 2.5, scale=delay_scale, enabled=human_delays)
+    return True
+
+
 def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bool = True,
                     timings: dict | None = None, human_delays: bool = True,
                     delay_scale: float = 1.0, stop_index: int = 0,
-                    total_stops: int = 0) -> tuple[list[Suggestion], Suggestion, SelectedLocation]:
+                    total_stops: int = 0, city: str = "Miami") -> tuple[list[Suggestion], Suggestion, SelectedLocation]:
     """Type the name, list Uber's suggestions, click only the exact match, and verify Uber's selection."""
     if isinstance(spec, str):
         spec = LocationSpec.parse(spec)
@@ -589,6 +646,16 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
         shot = save_screenshot(page, f"{role}-field-missing")
         raise ExtractorError(f"Could not find the {role} input on the page. Screenshot: {shot}")
     lap("field_ready")
+
+    # If pickup role, check if 'Search in a different city' is present and handle city switch first
+    if role == "pickup":
+        try:
+            field.click(timeout=5000)
+        except PlaywrightError:
+            pass
+        if page.locator('text="Search in a different city"').first.is_visible():
+            select_city(page, city=city, verbose=verbose, human_delays=human_delays, delay_scale=delay_scale)
+            field = location_field(page, role, stop_index=stop_index, total_stops=total_stops)
 
     # Human reaction pause before clicking input
     human_pause(1.2, 2.5, scale=delay_scale, enabled=human_delays)
@@ -638,6 +705,15 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
 
     try:
         chosen = match_suggestion(spec, suggestions)
+    except LocationNotFoundError:
+        if select_city(page, city=city, verbose=verbose, human_delays=human_delays, delay_scale=delay_scale):
+            field = location_field(page, role, stop_index=stop_index, total_stops=total_stops)
+            type_name()
+            suggestions = read_suggestions(page, spec.typed_text)
+            chosen = match_suggestion(spec, suggestions)
+        else:
+            save_screenshot(page, f"{role}-no-unique-match")
+            raise
     except ExtractorError:
         save_screenshot(page, f"{role}-no-unique-match")
         raise
@@ -862,6 +938,27 @@ def page_summary(page: Page) -> str:
     return f"url={urlparse(page.url).path}\n  headings: {headings}\n  text: {' | '.join(lines)}"
 
 
+def handle_airport_airline_popup(page: Page, verbose: bool = True) -> bool:
+    """If Uber prompts 'Which airline?' or terminal selection, click 'Skip' to proceed to ride pricing."""
+    try:
+        skip_btn = page.get_by_role("button", name="Skip", exact=True)
+        if not skip_btn.is_visible():
+            skip_btn = page.locator('button:has-text("Skip"), [aria-label="Skip"]').first
+
+        if skip_btn.is_visible():
+            if verbose:
+                print("\n[airport] 'Which airline?' prompt detected. Clicking 'Skip'...")
+            try:
+                skip_btn.click(timeout=3000)
+            except PlaywrightError:
+                skip_btn.click(force=True)
+            page.wait_for_timeout(1000)
+            return True
+    except PlaywrightError:
+        pass
+    return False
+
+
 def search_rides(page: Page, pickup: SelectedLocation, destination: SelectedLocation,
                  screenshot_before: bool = True, human_delays: bool = True,
                  delay_scale: float = 1.0, stops: list[SelectedLocation] | None = None) -> int:
@@ -875,23 +972,34 @@ def search_rides(page: Page, pickup: SelectedLocation, destination: SelectedLoca
         print(f"\n[info] Clicking 'Search' (screenshot before: {before})")
     human_pause(0.8, 1.8, scale=delay_scale, enabled=human_delays)
     safe_click(button, "the Search button")
+    handle_airport_airline_popup(page)
     return wait_for_ride_options(page, pickup, destination, stops=stops)
 
 
 def wait_for_ride_options(page: Page, pickup: SelectedLocation, destination: SelectedLocation,
                            stops: list[SelectedLocation] | None = None) -> int:
     """Wait until /go/product-selection shows ride rows with prices, for exactly this route."""
+    handle_airport_airline_popup(page)
     try:
         page.wait_for_url("**/go/product-selection**", timeout=RESULTS_TIMEOUT_MS, wait_until="commit")
     except PlaywrightError:
-        shot = save_screenshot(page, "results-no-navigation")
-        raise RideOptionsNotLoadedError(
-            f"Search did not open the ride options page.\n  {page_summary(page)}\n  Screenshot: {shot}")
+        if handle_airport_airline_popup(page):
+            try:
+                page.wait_for_url("**/go/product-selection**", timeout=RESULTS_TIMEOUT_MS, wait_until="commit")
+            except PlaywrightError:
+                shot = save_screenshot(page, "results-no-navigation")
+                raise RideOptionsNotLoadedError(
+                    f"Search did not open the ride options page.\n  {page_summary(page)}\n  Screenshot: {shot}")
+        else:
+            shot = save_screenshot(page, "results-no-navigation")
+            raise RideOptionsNotLoadedError(
+                f"Search did not open the ride options page.\n  {page_summary(page)}\n  Screenshot: {shot}")
 
     # The URL change alone is not success: wait until ride rows with a visible price are rendered.
     try:
         count = wait_for_stable_priced_rows(page)
     except PlaywrightError:
+        handle_airport_airline_popup(page)
         shot = save_screenshot(page, "results-no-prices")
         raise RideOptionsNotLoadedError(
             f"Ride options page opened but no stable list of priced rides appeared.\n"
@@ -1979,27 +2087,43 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None,
     try:
         with timer.phase("location_selection"):
             pickup_spec = LocationSpec.from_config({**locations[route["pickup"]], "label": route["pickup"]})
-            pickup, pickup_raw = resolve_place(page, pickup_spec, region, "pickup",
-                                               rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
-
-            resolved_stops = []
-            for i, stop_label in enumerate(stops_labels, 1):
-                stop_spec = LocationSpec.from_config({**locations[stop_label], "label": stop_label})
-                stop_loc, stop_raw = resolve_place(page, stop_spec, region, f"stop_{i}",
-                                                   rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
-                resolved_stops.append((stop_loc, stop_raw))
-
             dest_spec = LocationSpec.from_config({**locations[route["destination"]], "label": route["destination"]})
-            destination, destination_raw = resolve_place(page, dest_spec, region, "destination",
-                                                         rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
 
-        phase = "route_form"
-        with timer.phase("route_form"):
-            open_route(page, pickup, pickup_raw, destination, destination_raw, stops=resolved_stops)
+            if not stops_labels:
+                # Simple route (0 stops): 1 page load total, select pickup & destination on the same page
+                open_booking_page(page)
+                _, _, pickup = select_location(page, "pickup", pickup_spec, verbose=False, timings=rec["location_breakdown"],
+                                             human_delays=human_delays, delay_scale=delay_scale)
+                check_region(pickup, region, "pickup")
+
+                _, _, destination = select_location(page, "destination", dest_spec, verbose=False, timings=rec["location_breakdown"],
+                                                    human_delays=human_delays, delay_scale=delay_scale)
+                check_region(destination, region, "destination")
+                resolved_stops = []
+            else:
+                # Multi-stop route: resolve place JSONs and open complete multi-stop route URL
+                pickup, pickup_raw = resolve_place(page, pickup_spec, region, "pickup",
+                                                   rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
+                resolved_stops = []
+                for i, stop_label in enumerate(stops_labels, 1):
+                    stop_spec = LocationSpec.from_config({**locations[stop_label], "label": stop_label})
+                    stop_loc, stop_raw = resolve_place(page, stop_spec, region, f"stop_{i}",
+                                                       rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
+                    resolved_stops.append((stop_loc, stop_raw))
+
+                destination, destination_raw = resolve_place(page, dest_spec, region, "destination",
+                                                             rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
+
+        if stops_labels:
+            phase = "route_form"
+            with timer.phase("route_form"):
+                open_route(page, pickup, pickup_raw, destination, destination_raw, stops=resolved_stops)
+            stops_locs = [s_loc for s_loc, _ in resolved_stops]
+        else:
+            stops_locs = []
 
         phase = "search_navigation"
         with timer.phase("search_navigation"):
-            stops_locs = [s_loc for s_loc, _ in resolved_stops]
             if "/go/product-selection" in page.url:
                 priced_rows = wait_for_ride_options(page, pickup, destination, stops=stops_locs)
             else:
@@ -2406,7 +2530,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
                     "id": route["id"], "category": route.get("category"),
                     "pickup_label": route["pickup"], "destination_label": route["destination"],
                     "stops_labels": route.get("stops", []),
-                    "status": FAILED, "reason": f"Unhandled exception: {exc}",
+                    "status": ERROR, "reason": f"Unhandled exception: {exc}",
                     "failed_phase": "unhandled_exception", "timings": {}, "prices_count": 0, "result": None,
                     "screenshot": shot
                 }
