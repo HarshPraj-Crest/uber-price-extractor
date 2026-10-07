@@ -1123,11 +1123,13 @@ def browser_config(args: argparse.Namespace) -> BrowserConfig:
         engine = "chromium"
     
     profile = None
+    storage_state = None
     user_agent = getattr(args, "user_agent", None)
     proxy = getattr(args, "proxy", None)
     account_arg = getattr(args, "account", None)
     profile_dir_arg = getattr(args, "profile_dir", None)
     rotate_arg = getattr(args, "rotate_accounts", False) or getattr(args, "rotate", False)
+    acc = None
     if rotate_arg:
         acc = get_next_rotated_account()
         prof_name = acc.get("profile_dir") or f"browser_profile_{acc['account_name']}"
@@ -1139,8 +1141,9 @@ def browser_config(args: argparse.Namespace) -> BrowserConfig:
         args.selected_account_name = acc["account_name"]
     elif profile_dir_arg:
         profile = Path(profile_dir_arg)
-        for acc in load_accounts():
-            if acc.get("profile_dir") and Path(acc["profile_dir"]).name == profile.name:
+        for a in load_accounts():
+            if a.get("profile_dir") and Path(a["profile_dir"]).name == profile.name:
+                acc = a
                 if not user_agent:
                     user_agent = acc.get("user_agent")
                 if not proxy:
@@ -1170,10 +1173,30 @@ def browser_config(args: argparse.Namespace) -> BrowserConfig:
         else:
             profile = PROFILE_DIR
 
+    if acc:
+        acc_name = acc.get("account_name", "")
+        prof_name = acc.get("profile_dir") or f"browser_profile_{acc_name}"
+        clean_name = acc_name.lower().replace(" ", "").replace("_", "")
+        candidates = [
+            BASE_DIR / "saved_sessions" / f"{clean_name}.json",
+            BASE_DIR / "saved_sessions" / f"{acc_name.lower()}.json",
+            BASE_DIR / "saved_sessions" / f"{acc_name}.json",
+            BASE_DIR / "saved_sessions" / f"{prof_name}.json",
+        ]
+        storage_state = next((p for p in candidates if p.exists()), None)
+
     if not user_agent:
         user_agent = REALISTIC_USER_AGENTS[0]
 
-    return BrowserConfig(profile_dir=profile, engine=engine, default_profile_dir=PROFILE_DIR, user_agent=user_agent, proxy=proxy)
+    return BrowserConfig(
+        profile_dir=profile,
+        engine=engine,
+        default_profile_dir=PROFILE_DIR,
+        user_agent=user_agent,
+        proxy=proxy,
+        storage_state=storage_state,
+    )
+
 
 
 def open_worker(args: argparse.Namespace, create_profile: bool = False) -> PlaywrightWorker:
@@ -1437,6 +1460,8 @@ def cmd_open(args: argparse.Namespace) -> int:
         print(f"[DEBUG] Executable path: {worker.browser_executable()}")
         print(f"[DEBUG] Browser Process ID (PID): {worker.browser_pid()}")
         print(f"[DEBUG] Profile directory: {worker.config.profile_dir}")
+        if worker.config.storage_state:
+            print(f"[DEBUG] Session State JSON: {worker.config.storage_state}")
         print(f"[DEBUG] User-Agent: {worker.config.user_agent or 'Default'}")
         print(f"[DEBUG] Proxy: {worker.config.proxy or 'None (Direct connection)'}")
         try:

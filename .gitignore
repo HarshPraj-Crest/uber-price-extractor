@@ -34,6 +34,7 @@ saved_sessions/
 auth*.json
 secrets*.json
 credentials*.json
+saved_sessions/
 
 # ---------------------------------------------------------------------------
 # Environment / build artefacts
