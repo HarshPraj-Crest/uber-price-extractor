@@ -22,9 +22,17 @@ def save_session_as_account(session_name: str, account_name: str):
 
     print(f"Creating profile → {profile_dir}")
 
+    import json, re
+    raw_content = session_file.read_text(encoding="utf-8", errors="ignore")
+    cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', raw_content)
+    try:
+        state_data = json.loads(cleaned)
+    except json.JSONDecodeError:
+        state_data = json.loads(cleaned, strict=False)
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(storage_state=str(session_file))
+        context = browser.new_context(storage_state=state_data)
         page = context.new_page()
         page.goto("https://m.uber.com/go/home", wait_until="domcontentloaded")
         time.sleep(3)
@@ -33,8 +41,7 @@ def save_session_as_account(session_name: str, account_name: str):
 
         persistent = p.chromium.launch_persistent_context(
             user_data_dir=str(profile_dir),
-            headless=True,
-            channel="chrome"
+            headless=True
         )
         persistent.add_cookies(cookies)
 
