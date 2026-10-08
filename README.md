@@ -167,46 +167,70 @@ python uber_prices.py accounts check
 
 If one device is already logged into an Uber account, you can export the session state and import it on another device without needing manual OTP verification on the receiving device.
 
-### Device A (The logged-in device)
+---
 
-#### Step 1: Export the session
+### 6.1 Transferring Local Session to Linux Server (Base64 Method)
+
+When transferring a session file from a local PC to a remote Linux cloud server via SSH, pasting large raw JSON text into terminal editors like `nano` can cause terminal line-buffer truncation (resulting in `JSONDecodeError`). Using a **single-line Base64 encoded file (`.b64`)** prevents truncation and guarantees 100% loss-less session transfer.
+
+#### Step 1: On Your Local Machine (PowerShell in `uber-price-extractor`)
+Convert your session JSON to Base64 and copy it to your clipboard:
+
 ```powershell
-python uber_session_manager.py export --name account3 --profile ./browser_profile_account_2
-```
-*(Change `./browser_profile_account_2` to whichever profile folder is currently logged in)*
+# 1. Convert account session JSON into a single-line .b64 file
+python -c "import base64; print(base64.b64encode(open('saved_sessions/account7.json','rb').read()).decode('utf-8'))" > saved_sessions/account7.b64
 
-This creates:
-```text
-saved_sessions/account3.json
+# 2. Copy the Base64 text directly to Windows Clipboard
+Get-Content saved_sessions\account7.b64 -Raw | Set-Clipboard
 ```
 
-#### Step 2: Send the file
-Send only `saved_sessions/account3.json` to Device B (via Telegram, WhatsApp, Google Drive, etc.).
+#### Step 2: On Your Server (Linux SSH Terminal)
+Run these commands line-by-line on your server:
+
+```bash
+# 1. Navigate to project directory & activate virtual environment
+cd ~/uber-price-extractor
+source venv/bin/activate
+
+# 2. Pull latest project updates
+git pull
+
+# 3. Create the .b64 file on server
+nano saved_sessions/account7.b64
+# (Paste from clipboard via Ctrl+Shift+V or Right-Click, then press Ctrl+O -> Enter -> Ctrl+X)
+
+# 4. Clean duplicate lines (if terminal auto-pasted twice)
+head -n 1 saved_sessions/account7.b64 > saved_sessions/account7.b64.tmp && mv saved_sessions/account7.b64.tmp saved_sessions/account7.b64
+
+# 5. Decode Base64, convert session & register Account_7 in data/accounts.csv
+xvfb-run python import_session.py account7 Account_7 saved_sessions/account7.b64
+
+# 6. Set proxy for Account_7
+python uber_prices.py accounts set-proxy --account Account_7 --proxy "http://YOUR_PROXY_USER:YOUR_PROXY_PASS@YOUR_PROXY_IP:YOUR_PROXY_PORT"
+
+# 7. Check account list to confirm registration
+python uber_prices.py accounts list
+
+# 8. Run batch extraction for Account_7 using xvfb-run
+xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" python uber_prices.py batch --account Account_7
+```
 
 ---
 
-### Device B (The receiving device)
+### 6.2 Local Desktop Session Import (JSON Method)
 
-#### Step 1: Place the received file
-Put the received file here:
-```text
-uber-price-extractor/saved_sessions/account3.json
-```
-
-#### Step 2: Test the session (Optional but recommended)
+#### Step 1: Export the session on Device A
 ```powershell
-python uber_session_manager.py open --name account3
+python uber_session_manager.py export --name account3 --profile ./browser_profile_account_2
 ```
-→ Browser will open already logged into Uber to verify the session works.
+
+#### Step 2: Transfer JSON file to Device B
+Place the file at `uber-price-extractor/saved_sessions/account3.json`.
 
 #### Step 3: Convert JSON → Permanent Account Profile
 ```powershell
 python save_as_account.py --session account3 --account Account_3
 ```
-
-This automatically:
-1. Creates folder → `browser_profile_account3`
-2. Automatically registers `Account_3` into `data/accounts.csv`
 
 #### Step 4: Use it normally
 ```powershell
@@ -224,13 +248,13 @@ python uber_prices.py batch --rotate
 
 ### Quick Summary Commands
 
-| Who | Action | Command |
+| Environment | Action | Command |
 | :--- | :--- | :--- |
-| **Device A** | Export session | `python uber_session_manager.py export --name account3 --profile ./browser_profile_account_2` |
-| **Device B** | Test session | `python uber_session_manager.py open --name account3` |
-| **Device B** | Save as permanent account | `python save_as_account.py --session account3 --account Account_3` |
-| **Device B** | Use the account | `python uber_prices.py open --account Account_3` |
-| **Device B** | Run batch with rotation | `python uber_prices.py batch --rotate` |
+| **Local (Windows)** | Convert JSON to Base64 | `python -c "import base64; print(base64.b64encode(open('saved_sessions/account7.json','rb').read()).decode('utf-8'))" > saved_sessions/account7.b64` |
+| **Local (Windows)** | Copy Base64 to Clipboard | `Get-Content saved_sessions\account7.b64 -Raw \| Set-Clipboard` |
+| **Server (Linux)** | Decode Base64 & Register Account | `xvfb-run python import_session.py account7 Account_7 saved_sessions/account7.b64` |
+| **Server (Linux)** | Set Proxy for Account | `python uber_prices.py accounts set-proxy --account Account_7 --proxy <ProxyURL>` |
+| **Server (Linux)** | Run Batch Extraction with Virtual Display | `xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" python uber_prices.py batch --account Account_7` |
 
 ---
 
@@ -397,6 +421,7 @@ route_id,source,destination,category,stops
 | `python uber_session_manager.py export --name <Session> --profile <Path>` | Export logged-in browser session into a portable JSON session file. |
 | `python uber_session_manager.py open --name <Session>` | Open browser to test and verify a saved JSON session state. |
 | `python save_as_account.py --session <Session> --account <Name>` | Convert JSON session into a permanent profile folder and register in `data/accounts.csv`. |
+| `python import_session.py <Session> <AccountName> <B64Path>` | Decode `.b64` session file, save JSON, build browser profile, and register in `data/accounts.csv`. |
 | `python uber_prices.py prices --pickup ... --destination ...` | Extract prices for a single route (supports `--stops` and `--method ui`). |
 
 ---
