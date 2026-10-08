@@ -41,8 +41,7 @@ def save_session_as_account(session_name: str, account_name: str):
 
         persistent = p.chromium.launch_persistent_context(
             user_data_dir=str(profile_dir),
-            headless=True,
-            channel="chrome"
+            headless=True
         )
         persistent.add_cookies(cookies)
 
