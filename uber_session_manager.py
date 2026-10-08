@@ -63,12 +63,24 @@ def export_session(profile_path: Path, session_name: str, proxy: str | None = No
             print("\n⚠️ The profile is not currently logged into Uber.")
             print("Please log into Uber in the browser window that just opened.")
             input("Press Enter after completing login to save the session...")
- 
+
         context.storage_state(path=str(output_file))
         context.close()
- 
+
     print(f"\n✅ Session saved successfully → {output_file}")
-    print(f"You can now share '{output_file.name}' with Lina!")
+
+    # Auto-generate Base64 file (.b64) and copy to clipboard
+    import base64, subprocess
+    b64_file = SESSIONS_DIR / f"{session_name}.b64"
+    b64_str = base64.b64encode(output_file.read_bytes()).decode("utf-8")
+    b64_file.write_text(b64_str, encoding="utf-8")
+    print(f"✅ Base64 session file created → {b64_file}")
+
+    try:
+        subprocess.run(["powershell", "-Command", f"Set-Clipboard -Value '{b64_str}'"], check=True)
+        print("📋 Base64 text automatically COPIED to your Windows Clipboard!")
+    except Exception:
+        pass
  
  
 def open_session(session_name: str, proxy: str | None = None):

@@ -6,7 +6,7 @@ import time
 import shutil
 import argparse
 
-def save_session_as_account(session_name: str, account_name: str):
+def save_session_as_account(session_name: str, account_name: str, proxy: str = ""):
     session_file = Path("saved_sessions") / f"{session_name}.json"
     profile_dir = Path(f"browser_profile_{account_name.lower()}")
     csv_file = Path("data/accounts.csv")
@@ -68,23 +68,27 @@ def save_session_as_account(session_name: str, account_name: str):
     # Check if account already exists
     existing_names = [row[0] for row in rows]
     if account_name in existing_names:
-        print(f"⚠️  {account_name} already exists in CSV. Skipping CSV update.")
+        # Update existing row's proxy if provided
+        for row in rows:
+            if row[0] == account_name:
+                if proxy:
+                    row[6] = proxy  # proxy column index
+                print(f"✅ Updated existing {account_name} in CSV with proxy: '{proxy or row[6]}'")
     else:
         # Add new row with default Windows User-Agent
         win_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
-        new_row = [account_name, "", str(profile_dir), "active", "", win_ua, "", f"From {session_name}.json"]
+        new_row = [account_name, "", str(profile_dir), "active", "", win_ua, proxy, f"From {session_name}.json"]
         # Adjust columns if needed
         while len(new_row) < len(headers):
             new_row.append("")
 
         rows.append(new_row)
+        print(f"✅ Added {account_name} to data/accounts.csv" + (f" with proxy: '{proxy}'" if proxy else ""))
 
-        with open(csv_file, "w", newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(headers)
-            writer.writerows(rows)
-
-        print(f"✅ Added {account_name} to data/accounts.csv")
+    with open(csv_file, "w", newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(rows)
 
     print("\nDone! Now you can use:")
     print(f"python uber_prices.py open --account {account_name}")
@@ -94,6 +98,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--session", required=True, help="Name of json file (without .json)")
     parser.add_argument("--account", required=True, help="Account name (example: Account_3)")
+    parser.add_argument("--proxy", default="", help="Optional proxy URL (e.g. http://user:pass@ip:port)")
     args = parser.parse_args()
 
-    save_session_as_account(args.session, args.account)
+    save_session_as_account(args.session, args.account, proxy=args.proxy)
