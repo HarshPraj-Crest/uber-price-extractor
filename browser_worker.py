@@ -223,8 +223,22 @@ class PlaywrightWorker:
         except Exception as exc:
             print(f"[warn] Could not load storage_state from {state_path}: {exc}")
 
+    def _clean_profile_locks(self, profile_dir: Path) -> None:
+        """Clean stale Singleton/lock files if present in profile directory."""
+        if not profile_dir.exists():
+            return
+        lock_names = {"singletonlock", "singletoncookie", "singletonsocket", "lockfile", "devtoolsactiveport"}
+        for item in profile_dir.iterdir():
+            if item.name.lower() in lock_names:
+                try:
+                    if item.is_file() or item.is_symlink():
+                        item.unlink(missing_ok=True)
+                except Exception:
+                    pass
+
     def _launch(self) -> BrowserContext:
         cfg = self.config
+        self._clean_profile_locks(Path(cfg.profile_dir))
         options = dict(
             user_data_dir=str(cfg.profile_dir),
             headless=cfg.headless,
@@ -235,7 +249,6 @@ class PlaywrightWorker:
             options["viewport"] = cfg.viewport
         else:
             options["no_viewport"] = True
-
 
         ua_to_use = cfg.user_agent or DEFAULT_USER_AGENT
         options["user_agent"] = ua_to_use
@@ -262,23 +275,37 @@ class PlaywrightWorker:
 
         browser_type_name, channel = ENGINES[cfg.engine]
         browser_type = getattr(self.playwright, browser_type_name)
-        if channel:
+
+        max_attempts = 2
+        last_exc = None
+        for attempt in range(1, max_attempts + 1):
             try:
-                context = browser_type.launch_persistent_context(channel=channel, **options)
-                context.set_extra_http_headers(headers)
+                if channel:
+                    try:
+                        context = browser_type.launch_persistent_context(channel=channel, **options)
+                        context.set_extra_http_headers(headers)
+                        self.engine_used = cfg.engine
+                        return context
+                    except PlaywrightError as exc:
+                        if attempt == 1:
+                            print(f"[warn] Could not launch installed Google Chrome ({exc.message.splitlines()[0]}); "
+                                  "falling back to Playwright Chromium.")
+                        self.engine_used = "chromium"
+                        context = browser_type.launch_persistent_context(**options)
+                        context.set_extra_http_headers(headers)
+                        return context
                 self.engine_used = cfg.engine
-                return context
-            except PlaywrightError as exc:
-                print(f"[warn] Could not launch installed Google Chrome ({exc.message.splitlines()[0]}); "
-                      "falling back to Playwright Chromium.")
-                self.engine_used = "chromium"
                 context = browser_type.launch_persistent_context(**options)
                 context.set_extra_http_headers(headers)
                 return context
-        self.engine_used = cfg.engine
-        context = browser_type.launch_persistent_context(**options)
-        context.set_extra_http_headers(headers)
-        return context
+            except PlaywrightError as exc:
+                last_exc = exc
+                if attempt < max_attempts:
+                    import time
+                    time.sleep(1.0)
+                    self._clean_profile_locks(Path(cfg.profile_dir))
+        if last_exc:
+            raise last_exc
 
     # -- diagnostics (read-only) -------------------------------------------------------------------
 
