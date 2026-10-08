@@ -157,16 +157,84 @@ python uber_prices.py accounts setup --account Account_2
 
 Complete manual login in the visible browser and press `Enter`. Its session cookies will be stored separately in `browser_profile_account2/`.
 
-### Step 4: Verify Account Session Cookies
-Cross-check all registered accounts to confirm session cookie databases exist:
-
 ```cmd
 python uber_prices.py accounts check
 ```
 
 ---
 
-## 6. Account Rotation & Checking Last Used Account
+## 6. Sharing & Transferring Logged-In Sessions Between Devices
+
+If one device is already logged into an Uber account, you can export the session state and import it on another device without needing manual OTP verification on the receiving device.
+
+### Device A (The logged-in device)
+
+#### Step 1: Export the session
+```powershell
+python uber_session_manager.py export --name account3 --profile ./browser_profile_account_2
+```
+*(Change `./browser_profile_account_2` to whichever profile folder is currently logged in)*
+
+This creates:
+```text
+saved_sessions/account3.json
+```
+
+#### Step 2: Send the file
+Send only `saved_sessions/account3.json` to Device B (via Telegram, WhatsApp, Google Drive, etc.).
+
+---
+
+### Device B (The receiving device)
+
+#### Step 1: Place the received file
+Put the received file here:
+```text
+uber-price-extractor/saved_sessions/account3.json
+```
+
+#### Step 2: Test the session (Optional but recommended)
+```powershell
+python uber_session_manager.py open --name account3
+```
+→ Browser will open already logged into Uber to verify the session works.
+
+#### Step 3: Convert JSON → Permanent Account Profile
+```powershell
+python save_as_account.py --session account3 --account Account_3
+```
+
+This automatically:
+1. Creates folder → `browser_profile_account3`
+2. Automatically registers `Account_3` into `data/accounts.csv`
+
+#### Step 4: Use it normally
+```powershell
+# Open browser for Account_3
+python uber_prices.py open --account Account_3
+
+# Run batch for Account_3
+python uber_prices.py batch --account Account_3
+
+# Run batch with automatic account rotation
+python uber_prices.py batch --rotate
+```
+
+---
+
+### Quick Summary Commands
+
+| Who | Action | Command |
+| :--- | :--- | :--- |
+| **Device A** | Export session | `python uber_session_manager.py export --name account3 --profile ./browser_profile_account_2` |
+| **Device B** | Test session | `python uber_session_manager.py open --name account3` |
+| **Device B** | Save as permanent account | `python save_as_account.py --session account3 --account Account_3` |
+| **Device B** | Use the account | `python uber_prices.py open --account Account_3` |
+| **Device B** | Run batch with rotation | `python uber_prices.py batch --rotate` |
+
+---
+
+## 7. Account Rotation & Checking Last Used Account
 
 ### Run Full Batch with Account Rotation (Recommended)
 Automatically selects the next active account in `data/accounts.csv`, loads its persistent browser profile & proxy, and runs all batch routes:
@@ -216,7 +284,7 @@ python uber_prices.py batch --rotate --only 1,2,13
 
 ---
 
-## 7. Managing Proxies Per Account
+## 8. Managing Proxies Per Account
 
 Assign HTTP, SOCKS5, or authenticated proxies per account in `data/accounts.csv`:
 
@@ -230,7 +298,7 @@ python uber_prices.py accounts set-proxy --account Account_1 --proxy direct
 
 ---
 
-## 8. Route Execution & Multi-Stop Commands
+## 9. Route Execution & Multi-Stop Commands
 
 ### Single Route Price Extraction
 ```cmd
@@ -254,7 +322,7 @@ python uber_prices.py locations --pickup "Fontainebleau" --stops "Prime 112" "E1
 
 ---
 
-## 9. Tracking Execution Time & Memory Usage
+## 10. Tracking Execution Time & Memory Usage
 
 You can monitor runtime duration and memory usage in **4 places**:
 
@@ -285,7 +353,7 @@ You can monitor runtime duration and memory usage in **4 places**:
 
 ---
 
-## 10. Reference Account Configuration File
+## 11. Reference Account Configuration File
 
 A reference template is available at `data/accounts_example.csv`:
 
@@ -297,7 +365,7 @@ Account_2,+15559876543,browser_profile_account2,active,,"Mozilla/5.0 (Windows NT
 
 ---
 
-## 11. Results & Data Formats
+## 12. Results & Data Formats
 
 ### `data/results.csv` Format
 Includes the `account` column identifying which mobile account extracted each price:
@@ -315,7 +383,7 @@ route_id,source,destination,category,stops
 
 ---
 
-## 12. CLI Command Summary
+## 13. CLI Command Summary
 
 | Command | Description |
 | :--- | :--- |
@@ -326,11 +394,15 @@ route_id,source,destination,category,stops
 | `python uber_prices.py accounts setup --account <Name>` | Open visible browser to log in and save session cookies for an account. |
 | `python uber_prices.py accounts check` | Cross-check account session profile directories and cookie databases. |
 | `python uber_prices.py accounts set-proxy --account <Name> --proxy <ProxyURL>` | Set or clear proxy for a specific account. |
+| `python uber_session_manager.py export --name <Session> --profile <Path>` | Export logged-in browser session into a portable JSON session file. |
+| `python uber_session_manager.py open --name <Session>` | Open browser to test and verify a saved JSON session state. |
+| `python save_as_account.py --session <Session> --account <Name>` | Convert JSON session into a permanent profile folder and register in `data/accounts.csv`. |
 | `python uber_prices.py prices --pickup ... --destination ...` | Extract prices for a single route (supports `--stops` and `--method ui`). |
 
 ---
 
-## 13. Safety, Privacy & Terms
+## 14. Safety, Privacy & Terms
 
 * **Confidentiality:** Never commit `browser_profile_account*`, `data/accounts.csv`, `data/results.csv`, or `data/results/` to source control.
 * **Terms of Service:** This repository is for educational and research purposes. Users assume all risk associated with automated web interaction.
+

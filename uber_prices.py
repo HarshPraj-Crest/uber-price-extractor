@@ -285,7 +285,17 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # Visible text that suggests Uber is showing a security challenge instead of the normal page.
-CHALLENGE_MARKERS = ("captcha", "verify you are human", "unusual activity", "security check")
+CHALLENGE_MARKERS = (
+    "captcha",
+    "verify you are human",
+    "unusual activity",
+    "security check",
+    "photo of your id",
+    "take a photo of your id",
+    "verify your identity",
+    "selfie",
+    "facial recognition",
+)
 
 
 class ExtractorError(Exception):
@@ -298,6 +308,54 @@ class LoginRequiredError(ExtractorError):
 
 class SecurityChallengeError(ExtractorError):
     pass
+
+
+def check_security_challenge(page: Page) -> None:
+    """Check if Uber is showing a CAPTCHA, security challenge, or identity verification modal overlay (populated or blank)."""
+    try:
+        if page.is_closed():
+            return
+        body = page.inner_text("body").lower()
+    except PlaywrightError:
+        return
+
+    # 1. Text marker check (Image 2)
+    for marker in CHALLENGE_MARKERS:
+        if marker in body:
+            if any(m in body for m in ("photo of your id", "selfie", "facial recognition", "verify your identity", "live selfie", "id photos")):
+                shot = save_screenshot(page, "identity-verification-modal")
+                raise SecurityChallengeError(
+                    "Uber identity verification required: 'Take a photo of your ID and a selfie' modal detected. "
+                    f"Complete verification manually via `python uber_prices.py open`. Screenshot: {shot}"
+                )
+            shot = save_screenshot(page, "security-challenge")
+            raise SecurityChallengeError(
+                f"Uber security challenge/CAPTCHA detected ({marker!r}). Screenshot: {shot}"
+            )
+
+    # 2. Modal dialog overlay check (Image 1: blank/loading modal box or overlay container)
+    try:
+        modal_selectors = [
+            'div[role="dialog"]',
+            '[data-baseweb="modal"]',
+            '[aria-modal="true"]',
+        ]
+        for sel in modal_selectors:
+            modal = page.locator(sel).first
+            if modal.count() > 0 and modal.is_visible():
+                try:
+                    mtext = modal.inner_text().lower()
+                except PlaywrightError:
+                    mtext = ""
+                # Catch populated or loading/blank modal overlay blocking the page
+                if any(m in mtext for m in ("photo", "id", "selfie", "verify", "continue", "close")) or len(mtext.strip()) == 0:
+                    shot = save_screenshot(page, "identity-verification-modal-overlay")
+                    raise SecurityChallengeError(
+                        "Uber identity verification required: 'Take a photo of your ID and a selfie' modal overlay detected. "
+                        f"Complete verification manually via `python uber_prices.py open`. Screenshot: {shot}"
+                    )
+    except PlaywrightError:
+        pass
 
 
 class LocationNotFoundError(ExtractorError):
@@ -1351,14 +1409,10 @@ def ensure_logged_in(page: Page) -> None:
 
     # Logged-in booking page shows the "Activity" nav link and the pickup field; logged-out shows "Log in".
     try:
+        check_security_challenge(page)
         location_field(page, "pickup").wait_for(state="visible", timeout=20_000)
     except PlaywrightError:
-        body = page.inner_text("body").lower()
-        if any(marker in body for marker in CHALLENGE_MARKERS):
-            shot = save_screenshot(page, "security-challenge")
-            raise SecurityChallengeError(
-                "Uber is showing a security challenge (CAPTCHA/verification). Complete it manually via "
-                f"`python uber_prices.py open`. Screenshot: {shot}")
+        check_security_challenge(page)
         shot = save_screenshot(page, "booking-page-not-loaded")
         raise ExtractorError(f"Booking page did not load (url: {page.url}). Screenshot: {shot}")
     try:
@@ -1864,12 +1918,11 @@ def open_booking_page(page: Page) -> None:
     host = urlparse(page.url).netloc
     if host.startswith("auth.") or "/login" in page.url:
         raise LoginRequiredError(f"Uber redirected to the login page ({host}): session expired.")
+    check_security_challenge(page)
     try:
         location_field(page, "pickup").wait_for(state="visible", timeout=20_000)
     except PlaywrightError:
-        body = page.inner_text("body").lower()
-        if any(marker in body for marker in CHALLENGE_MARKERS):
-            raise SecurityChallengeError("Uber is showing a security challenge; complete it manually.")
+        check_security_challenge(page)
         if page.get_by_role("button", name="Log in").count() or page.get_by_role("link", name="Log in").count():
             raise LoginRequiredError("Uber shows 'Log in': session expired.")
         raise ExtractorError(f"Booking page did not load (url: {page.url}).")
@@ -2141,6 +2194,11 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None,
         rec["prices_count"] = len(rides)
         rec["status"] = SUCCESS
     except (ExtractorError, PlaywrightError) as exc:
+        if not page.is_closed():
+            try:
+                check_security_challenge(page)
+            except SecurityChallengeError as sec_exc:
+                exc = sec_exc
         rec["status"] = classify_failure(exc)
         rec["reason"] = exc.message if isinstance(exc, PlaywrightError) else str(exc)
         rec["failed_phase"] = phase

@@ -18,6 +18,9 @@ data/*.log
 data/*.csv
 !data/routes.csv
 data/accounts.csv
+data/rotation_state.json
+data/rotate*.json
+data/*rotation*.json
 *.log
 
 # Secrets / exported sessions (in case they are ever added)
