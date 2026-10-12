@@ -319,10 +319,21 @@ def check_security_challenge(page: Page) -> None:
     except PlaywrightError:
         return
 
-    # 1. Text marker check (Image 2)
+    # 1. Text marker check
     for marker in CHALLENGE_MARKERS:
         if marker in body:
             if any(m in body for m in ("photo of your id", "selfie", "facial recognition", "verify your identity", "live selfie", "id photos")):
+                # Check if modal can be dismissed via 'Close' button
+                close_btn = page.get_by_role("button", name="Close", exact=True)
+                if not close_btn.is_visible():
+                    close_btn = page.locator('button:has-text("Close"), [aria-label="Close"]').first
+                if close_btn.count() > 0 and close_btn.is_visible():
+                    try:
+                        close_btn.click(timeout=3000)
+                        page.wait_for_timeout(1000)
+                        return
+                    except PlaywrightError:
+                        pass
                 shot = save_screenshot(page, "identity-verification-modal")
                 raise SecurityChallengeError(
                     "Uber identity verification required: 'Take a photo of your ID and a selfie' modal detected. "
@@ -333,7 +344,7 @@ def check_security_challenge(page: Page) -> None:
                 f"Uber security challenge/CAPTCHA detected ({marker!r}). Screenshot: {shot}"
             )
 
-    # 2. Modal dialog overlay check (Image 1: blank/loading modal box or overlay container)
+    # 2. Modal dialog overlay check (dialogs, popups, or overlays blocking the page)
     try:
         modal_selectors = [
             'div[role="dialog"]',
@@ -347,8 +358,31 @@ def check_security_challenge(page: Page) -> None:
                     mtext = modal.inner_text().lower()
                 except PlaywrightError:
                     mtext = ""
-                # Catch populated or loading/blank modal overlay blocking the page
-                if any(m in mtext for m in ("photo", "id", "selfie", "verify", "continue", "close")) or len(mtext.strip()) == 0:
+
+                # If this is a cookie consent banner, dismiss it and continue
+                if "cookie" in mtext or "got it" in mtext or "opt out" in mtext:
+                    got_it = modal.get_by_role("button", name="Got it").or_(modal.locator('button:has-text("Got it")')).first
+                    if got_it.count() > 0 and got_it.is_visible():
+                        try:
+                            got_it.click(timeout=2000)
+                        except PlaywrightError:
+                            pass
+                    continue
+
+                # Attempt to close if 'Close' button is present inside the modal
+                close_btn = modal.get_by_role("button", name="Close", exact=True)
+                if not close_btn.is_visible():
+                    close_btn = modal.locator('button:has-text("Close"), [aria-label="Close"]').first
+                if close_btn.count() > 0 and close_btn.is_visible():
+                    try:
+                        close_btn.click(timeout=3000)
+                        page.wait_for_timeout(1000)
+                        return
+                    except PlaywrightError:
+                        pass
+
+                # Catch real identity verification modal overlay
+                if any(m in mtext for m in ("photo of your id", "selfie", "facial recognition", "verify your identity", "take a photo")):
                     shot = save_screenshot(page, "identity-verification-modal-overlay")
                     raise SecurityChallengeError(
                         "Uber identity verification required: 'Take a photo of your ID and a selfie' modal overlay detected. "
@@ -526,6 +560,7 @@ def match_suggestion(spec: LocationSpec, suggestions: list[Suggestion]) -> Sugge
 def find_add_stop_button(page: Page):
     """Find Uber's 'Add stop' button on the form card."""
     candidates = [
+        page.locator('[data-testid="add-stop-end-enhancers"]'),
         page.get_by_role("button", name=re.compile(r"add\s+(a\s+)?stop", re.I)),
         page.locator('button:has-text("Add stop")'),
         page.locator('button:has-text("Add a stop")'),
@@ -549,20 +584,45 @@ def location_field(page: Page, role: str, stop_index: int = 0, total_stops: int 
     if role == "pickup":
         container = page.locator('[data-testid="pudo-select-v2"]').filter(
             has=page.locator(f'[data-testid="{FIELD_ICON_TESTID["pickup"]}"]')).first
-        return container.get_by_role("combobox")
+        if container.count() > 0:
+            return container.get_by_role("combobox")
+        cbs = page.get_by_role("combobox", name="Search for a location")
+        return cbs.first if cbs.count() > 0 else page.locator('input[role="combobox"]').first
 
-    drop_containers = page.locator('[data-testid="pudo-select-v2"]').filter(
-        has=page.locator(f'[data-testid="{FIELD_ICON_TESTID["destination"]}"]'))
+    # All pudo-select-v2 location containers
+    containers = page.locator('[data-testid="pudo-select-v2"]')
+    all_cbs = page.get_by_role("combobox", name="Search for a location")
+    if all_cbs.count() == 0:
+        all_cbs = page.locator('input[role="combobox"]')
 
     if role in ("stop", "intermediate_stop") or role.startswith("stop"):
-        if drop_containers.count() > stop_index:
-            return drop_containers.nth(stop_index).get_by_role("combobox")
-        return drop_containers.first.get_by_role("combobox")
+        # Stop index 0 is at container/combobox index 1 (pickup is index 0)
+        target_idx = 1 + stop_index
+        if containers.count() > target_idx:
+            cb = containers.nth(target_idx).get_by_role("combobox")
+            if cb.count() > 0:
+                return cb
+            input_el = containers.nth(target_idx).locator("input")
+            if input_el.count() > 0:
+                return input_el
+        if all_cbs.count() > target_idx:
+            return all_cbs.nth(target_idx)
+        focused = page.locator('input:focus, [role="combobox"]:focus')
+        if focused.count() > 0:
+            return focused.first
+        return all_cbs.nth(1) if all_cbs.count() > 1 else all_cbs.first
     else:  # destination
-        idx = total_stops if total_stops > 0 else 0
-        if drop_containers.count() > idx:
-            return drop_containers.nth(idx).get_by_role("combobox")
-        return drop_containers.last.get_by_role("combobox")
+        # Destination is the last location container
+        if containers.count() > 1:
+            cb = containers.last.get_by_role("combobox")
+            if cb.count() > 0:
+                return cb
+            input_el = containers.last.locator("input")
+            if input_el.count() > 0:
+                return input_el
+        if all_cbs.count() > 1:
+            return all_cbs.last
+        return all_cbs.first
 
 
 def read_suggestions(page: Page, query: str) -> list[Suggestion]:
@@ -817,6 +877,8 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
 def select_route_ui(page: Page, pickup_query: LocationSpec | str,
                     destination_query: LocationSpec | str,
                     stops_queries: list[LocationSpec | str] | None = None,
+                    region: dict | None = None,
+                    timings: dict | None = None,
                     human_delays: bool = True,
                     delay_scale: float = 1.0) -> tuple[SelectedLocation, list[SelectedLocation], SelectedLocation]:
     """Select pickup, click 'Add stop' for each intermediate stop, and select destination sequentially via UI."""
@@ -830,12 +892,27 @@ def select_route_ui(page: Page, pickup_query: LocationSpec | str,
     open_booking_page(page)
 
     # 1. Select Pickup
-    _, _, pickup = select_location(page, "pickup", pickup_query, total_stops=total_stops,
-                                   human_delays=human_delays, delay_scale=delay_scale)
+    pickup_spec = LocationSpec.parse(pickup_query) if isinstance(pickup_query, str) else pickup_query
+    _, _, pickup = select_location(page, "pickup", pickup_spec, total_stops=total_stops,
+                                   timings=timings, human_delays=human_delays, delay_scale=delay_scale)
+    if region:
+        check_region(pickup, region, "pickup")
 
     # 2. Add and Select each Intermediate Stop
     selected_stops: list[SelectedLocation] = []
     for idx, stop_q in enumerate(stops_queries):
+        stop_spec = LocationSpec.parse(stop_q) if isinstance(stop_q, str) else stop_q
+
+        # Defocus/blur suggestion dropdown before looking for Add stop button
+        try:
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(300)
+            heading = page.get_by_role("heading", name="Get a ride")
+            if heading.count() > 0 and heading.first.is_visible():
+                heading.first.click(timeout=1000)
+        except Exception:
+            pass
+
         add_btn = find_add_stop_button(page)
         if not add_btn:
             shot = save_screenshot(page, f"add-stop-{idx+1}-missing")
@@ -849,13 +926,18 @@ def select_route_ui(page: Page, pickup_query: LocationSpec | str,
         safe_click(add_btn, "the Add stop button")
         human_pause(0.5, 1.2, scale=delay_scale, enabled=human_delays)
 
-        _, _, stop_loc = select_location(page, "stop", stop_q, stop_index=idx, total_stops=total_stops,
-                                        human_delays=human_delays, delay_scale=delay_scale)
+        _, _, stop_loc = select_location(page, "stop", stop_spec, stop_index=idx, total_stops=total_stops,
+                                        timings=timings, human_delays=human_delays, delay_scale=delay_scale)
+        if region:
+            check_region(stop_loc, region, f"stop_{idx+1}")
         selected_stops.append(stop_loc)
 
     # 3. Select Destination
-    _, _, destination = select_location(page, "destination", destination_query, total_stops=total_stops,
-                                        human_delays=human_delays, delay_scale=delay_scale)
+    dest_spec = LocationSpec.parse(destination_query) if isinstance(destination_query, str) else destination_query
+    _, _, destination = select_location(page, "destination", dest_spec, total_stops=total_stops,
+                                        timings=timings, human_delays=human_delays, delay_scale=delay_scale)
+    if region:
+        check_region(destination, region, "destination")
 
     verify_route_in_url(page, pickup, destination, stops=selected_stops)
     return pickup, selected_stops, destination
@@ -2141,42 +2223,17 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None,
         with timer.phase("location_selection"):
             pickup_spec = LocationSpec.from_config({**locations[route["pickup"]], "label": route["pickup"]})
             dest_spec = LocationSpec.from_config({**locations[route["destination"]], "label": route["destination"]})
+            stops_specs = [LocationSpec.from_config({**locations[s], "label": s}) for s in stops_labels]
 
-            if not stops_labels:
-                # Simple route (0 stops): 1 page load total, select pickup & destination on the same page
-                open_booking_page(page)
-                _, _, pickup = select_location(page, "pickup", pickup_spec, verbose=False, timings=rec["location_breakdown"],
-                                             human_delays=human_delays, delay_scale=delay_scale)
-                check_region(pickup, region, "pickup")
-
-                _, _, destination = select_location(page, "destination", dest_spec, verbose=False, timings=rec["location_breakdown"],
-                                                    human_delays=human_delays, delay_scale=delay_scale)
-                check_region(destination, region, "destination")
-                resolved_stops = []
-            else:
-                # Multi-stop route: resolve place JSONs and open complete multi-stop route URL
-                pickup, pickup_raw = resolve_place(page, pickup_spec, region, "pickup",
-                                                   rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
-                resolved_stops = []
-                for i, stop_label in enumerate(stops_labels, 1):
-                    stop_spec = LocationSpec.from_config({**locations[stop_label], "label": stop_label})
-                    stop_loc, stop_raw = resolve_place(page, stop_spec, region, f"stop_{i}",
-                                                       rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
-                    resolved_stops.append((stop_loc, stop_raw))
-
-                destination, destination_raw = resolve_place(page, dest_spec, region, "destination",
-                                                             rec["location_breakdown"], human_delays=human_delays, delay_scale=delay_scale)
-
-        if stops_labels:
-            phase = "route_form"
-            with timer.phase("route_form"):
-                open_route(page, pickup, pickup_raw, destination, destination_raw, stops=resolved_stops)
-            stops_locs = [s_loc for s_loc, _ in resolved_stops]
-        else:
-            stops_locs = []
+            pickup, resolved_stops, destination = select_route_ui(
+                page, pickup_spec, dest_spec, stops_queries=stops_specs,
+                region=region, timings=rec["location_breakdown"],
+                human_delays=human_delays, delay_scale=delay_scale
+            )
 
         phase = "search_navigation"
         with timer.phase("search_navigation"):
+            stops_locs = resolved_stops
             if "/go/product-selection" in page.url:
                 priced_rows = wait_for_ride_options(page, pickup, destination, stops=stops_locs)
             else:
