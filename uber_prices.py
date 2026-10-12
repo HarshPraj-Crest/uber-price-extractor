@@ -359,14 +359,21 @@ def check_security_challenge(page: Page) -> None:
                 except PlaywrightError:
                     mtext = ""
 
-                # If this is a cookie consent banner, dismiss it and continue
+                # If this is a cookie consent banner, dismiss it and continue (prefer 'Opt out')
                 if "cookie" in mtext or "got it" in mtext or "opt out" in mtext:
-                    got_it = modal.get_by_role("button", name="Got it").or_(modal.locator('button:has-text("Got it")')).first
-                    if got_it.count() > 0 and got_it.is_visible():
+                    opt_out = modal.get_by_role("button", name="Opt out").or_(modal.locator('button:has-text("Opt out")')).first
+                    if opt_out.count() > 0 and opt_out.is_visible():
                         try:
-                            got_it.click(timeout=2000)
+                            opt_out.click(timeout=2000)
                         except PlaywrightError:
                             pass
+                    else:
+                        got_it = modal.get_by_role("button", name="Got it").or_(modal.locator('button:has-text("Got it")')).first
+                        if got_it.count() > 0 and got_it.is_visible():
+                            try:
+                                got_it.click(timeout=2000)
+                            except PlaywrightError:
+                                pass
                     continue
 
                 # Attempt to close if 'Close' button is present inside the modal
