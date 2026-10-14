@@ -102,6 +102,7 @@ class BrowserConfig:
     extra_http_headers: dict[str, str] | None = None
     proxy: str | dict | None = None
     timezone_id: str = "America/New_York"
+    locale: str = "en-US"
     storage_state: Path | str | None = None
 
 
@@ -243,6 +244,7 @@ class PlaywrightWorker:
             user_data_dir=str(cfg.profile_dir),
             headless=cfg.headless,
             timezone_id=cfg.timezone_id or "America/New_York",
+            locale=cfg.locale or "en-US",
         )
 
         if cfg.viewport is not None:

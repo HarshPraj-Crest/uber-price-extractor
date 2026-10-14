@@ -1193,6 +1193,35 @@ def extract_rides_stable(page: Page) -> tuple[list["RideOption"], int]:
     return extract_rides(page), count
 
 
+def simulate_price_inspection(page: Page, human_delays: bool = True, delay_scale: float = 1.0) -> None:
+    """
+    Simulate realistic human behavior when viewing ride options:
+    - Hover over ride cards panel.
+    - Scroll down a random distance (250px to 650px).
+    - Stop scrolling immediately and dwell for 2.0 to 3.0 seconds reading prices.
+    - No forced scroll-back up.
+    """
+    if not human_delays or delay_scale <= 0:
+        return
+    try:
+        # Hover over the ride cards panel so mouse-wheel events target the scrollable container
+        first_card = page.locator(RIDE_OPTION_SELECTOR).first
+        if first_card.count() > 0 and first_card.is_visible():
+            human_mouse_move(page, first_card)
+            time.sleep(random.uniform(0.15, 0.30) * delay_scale)
+
+        # 1. Random downward scroll (variable on every route)
+        scroll_down = random.randint(250, 650)
+        page.mouse.wheel(0, scroll_down)
+        time.sleep(random.uniform(0.30, 0.50) * delay_scale)
+
+        # 2. Stop and dwell to read prices (2.0 to 3.0 seconds)
+        dwell_time = random.uniform(2.0, 3.0) * delay_scale
+        time.sleep(dwell_time)
+    except PlaywrightError:
+        pass
+
+
 # --- Price extraction ---------------------------------------------------------------------------
 
 CURRENCY_SYMBOLS = {"₹": "INR", "$": "USD", "€": "EUR", "£": "GBP"}
@@ -2249,6 +2278,7 @@ def run_route(page: Page, route: dict, locations: dict, region: dict | None,
 
         phase = "price_extraction"
         with timer.phase("price_extraction"):
+            simulate_price_inspection(page, human_delays=human_delays, delay_scale=delay_scale)
             fetched_at = get_eastern_datetime()
             rides, priced_rows = extract_rides_stable(page)
             validate_rides(rides, priced_rows)
