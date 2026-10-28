@@ -262,6 +262,7 @@ class PlaywrightWorker:
         if cfg.proxy:
             parsed_proxy = parse_proxy(cfg.proxy)
             if parsed_proxy:
+                parsed_proxy.setdefault("bypass", "auth.uber.com,*.auth.uber.com")
                 options["proxy"] = parsed_proxy
 
         if cfg.engine in CHROMIUM_FAMILY:

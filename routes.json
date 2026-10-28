@@ -25,16 +25,18 @@
       ]
     },
     "Fontainebleau Miami Beach": {
-      "name": "Fontainebleau Miami Beach",
+      "name": "Fontainebleau",
       "address": [
+        "4441",
         "Collins Ave",
         "Miami Beach",
         "FL"
       ]
     },
     "Fontainebleau": {
-      "name": "Fontainebleau Miami Beach",
+      "name": "Fontainebleau",
       "address": [
+        "4441",
         "Collins Ave",
         "Miami Beach",
         "FL"
@@ -253,22 +255,33 @@
       ]
     },
     "Miami International Airport": {
-      "name": "Miami International Airport (MIA)",
+      "name": "MIA - Miami International Airport",
+      "aliases": [
+        "Miami International Airport (MIA)",
+        "Miami International Airport"
+      ],
       "address": [
         "NW 42nd Ave",
         "FL"
       ]
     },
     "MIA Airport": {
-      "name": "Miami International Airport (MIA)",
+      "name": "MIA - Miami International Airport",
+      "aliases": [
+        "Miami International Airport (MIA)",
+        "Miami International Airport"
+      ],
       "address": [
         "NW 42nd Ave",
         "FL"
       ]
     },
     "Fort Lauderdale Airport (FLL)": {
-      "name": "Fort Lauderdale-Hollywood International Airport (FLL)",
-      "query": "Fort Lauderdale",
+      "name": "FLL - Fort Lauderdale-Hollywood International Airport",
+      "aliases": [
+        "Fort Lauderdale-Hollywood International Airport (FLL)",
+        "Fort Lauderdale-Hollywood International Airport"
+      ],
       "address": [
         "Terminal Dr",
         "FL"
@@ -432,7 +445,11 @@
       ]
     },
     "Miami International Airport (MIA)": {
-      "name": "Miami International Airport (MIA)",
+      "name": "MIA - Miami International Airport",
+      "aliases": [
+        "Miami International Airport (MIA)",
+        "Miami International Airport"
+      ],
       "address": [
         "NW 42nd Ave",
         "Miami",
@@ -440,7 +457,11 @@
       ]
     },
     "Fort Lauderdale-Hollywood International Airport (FLL)": {
-      "name": "Fort Lauderdale-Hollywood International Airport (FLL)",
+      "name": "FLL - Fort Lauderdale-Hollywood International Airport",
+      "aliases": [
+        "Fort Lauderdale-Hollywood International Airport (FLL)",
+        "Fort Lauderdale-Hollywood International Airport"
+      ],
       "address": [
         "Terminal Dr",
         "Fort Lauderdale",

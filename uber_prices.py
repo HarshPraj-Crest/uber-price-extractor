@@ -295,6 +295,10 @@ CHALLENGE_MARKERS = (
     "verify your identity",
     "selfie",
     "facial recognition",
+    "verification required",
+    "before proceeding",
+    "verification steps",
+    "complete the following verification steps",
 )
 
 
@@ -310,8 +314,78 @@ class SecurityChallengeError(ExtractorError):
     pass
 
 
-def check_security_challenge(page: Page) -> None:
-    """Check if Uber is showing a CAPTCHA, security challenge, or identity verification modal overlay (populated or blank)."""
+class ProxyConnectionError(ExtractorError):
+    """Raised when the residential proxy connection fails all retry attempts."""
+    pass
+
+
+def is_verification_modal_present(page: Page) -> tuple[bool, str]:
+    """Check if either biometric ID or step-up verification modal is currently visible on page, including inside iframes."""
+    try:
+        if page.is_closed():
+            return False, ""
+        
+        # 1. Check all nested frames (Uber embeds Veriff / identity verification inside a payments.uber.com iframe)
+        for frame in page.frames:
+            furl = frame.url.lower()
+            if "identity-verification" in furl or "veriff" in furl:
+                return True, "Take a photo of your ID and a selfie"
+            try:
+                fbody = frame.inner_text("body").lower()
+                if any(m in fbody for m in ("photo of your id", "selfie", "facial recognition", "id photos", "unusual activity")):
+                    return True, "Take a photo of your ID and a selfie"
+                if any(m in fbody for m in ("verification required", "complete the following verification steps")):
+                    return True, "Verification required"
+            except Exception:
+                pass
+
+        # 2. Check if identity-verification iframe or payments hub iframe is attached to main page
+        if page.locator('iframe[src*="identity-verification"], iframe[name*="payments_hub"]').count() > 0:
+            return True, "Take a photo of your ID and a selfie"
+
+        # 3. Direct explicit element locators on main page for "Verification required" dialog
+        if page.get_by_role("heading", name="Verification required").count() > 0:
+            return True, "Verification required"
+        if page.get_by_text("Before proceeding, please complete the following verification steps").count() > 0:
+            return True, "Verification required"
+        if page.locator('div[role="dialog"]').filter(has_text="Verification required").count() > 0:
+            return True, "Verification required"
+
+        # 4. Check top-level body text
+        body = page.inner_text("body").lower()
+        if any(m in body for m in ("photo of your id", "selfie", "facial recognition", "id photos", "unusual activity")):
+            return True, "Take a photo of your ID and a selfie"
+        if any(m in body for m in ("verification required", "before proceeding", "complete the following verification steps", "verification steps")):
+            return True, "Verification required"
+        
+        # 5. Check dialog modal text across all matching elements
+        for sel in ('div[role="dialog"]', '[data-baseweb="modal"]', '[aria-modal="true"]'):
+            loc = page.locator(sel)
+            for i in range(loc.count()):
+                modal = loc.nth(i)
+                if not modal.is_visible():
+                    continue
+                try:
+                    mtext = modal.inner_text().lower()
+                except PlaywrightError:
+                    continue
+                if "cookie" in mtext or "opt out" in mtext or "got it" in mtext:
+                    continue
+                if any(m in mtext for m in ("photo of your id", "selfie", "facial recognition", "id photos", "unusual activity")):
+                    return True, "Take a photo of your ID and a selfie"
+                if any(m in mtext for m in ("verification required", "before proceeding", "complete the following verification steps", "verification steps")):
+                    return True, "Verification required"
+    except PlaywrightError:
+        pass
+    return False, ""
+
+
+def check_security_challenge(page: Page, wait_for_user_seconds: int = 30) -> None:
+    """
+    Check if Uber is showing a CAPTCHA, security challenge, or verification modal overlay.
+    If an interactive verification modal appears, pauses and keeps the browser window open
+    for up to `wait_for_user_seconds` (default 30s) so the user can complete the verification steps.
+    """
     try:
         if page.is_closed():
             return
@@ -319,47 +393,12 @@ def check_security_challenge(page: Page) -> None:
     except PlaywrightError:
         return
 
-    # 1. Text marker check
-    for marker in CHALLENGE_MARKERS:
-        if marker in body:
-            if any(m in body for m in ("photo of your id", "selfie", "facial recognition", "verify your identity", "live selfie", "id photos")):
-                # Check if modal can be dismissed via 'Close' button
-                close_btn = page.get_by_role("button", name="Close", exact=True)
-                if not close_btn.is_visible():
-                    close_btn = page.locator('button:has-text("Close"), [aria-label="Close"]').first
-                if close_btn.count() > 0 and close_btn.is_visible():
-                    try:
-                        close_btn.click(timeout=3000)
-                        page.wait_for_timeout(1000)
-                        return
-                    except PlaywrightError:
-                        pass
-                shot = save_screenshot(page, "identity-verification-modal")
-                raise SecurityChallengeError(
-                    "Uber identity verification required: 'Take a photo of your ID and a selfie' modal detected. "
-                    f"Complete verification manually via `python uber_prices.py open`. Screenshot: {shot}"
-                )
-            shot = save_screenshot(page, "security-challenge")
-            raise SecurityChallengeError(
-                f"Uber security challenge/CAPTCHA detected ({marker!r}). Screenshot: {shot}"
-            )
-
-    # 2. Modal dialog overlay check (dialogs, popups, or overlays blocking the page)
+    # 1. Dismiss cookie banners if present
     try:
-        modal_selectors = [
-            'div[role="dialog"]',
-            '[data-baseweb="modal"]',
-            '[aria-modal="true"]',
-        ]
-        for sel in modal_selectors:
+        for sel in ('div[role="dialog"]', '[data-baseweb="modal"]', '[aria-modal="true"]'):
             modal = page.locator(sel).first
             if modal.count() > 0 and modal.is_visible():
-                try:
-                    mtext = modal.inner_text().lower()
-                except PlaywrightError:
-                    mtext = ""
-
-                # If this is a cookie consent banner, dismiss it and continue (prefer 'Opt out')
+                mtext = modal.inner_text().lower()
                 if "cookie" in mtext or "got it" in mtext or "opt out" in mtext:
                     opt_out = modal.get_by_role("button", name="Opt out").or_(modal.locator('button:has-text("Opt out")')).first
                     if opt_out.count() > 0 and opt_out.is_visible():
@@ -374,29 +413,45 @@ def check_security_challenge(page: Page) -> None:
                                 got_it.click(timeout=2000)
                             except PlaywrightError:
                                 pass
-                    continue
-
-                # Attempt to close if 'Close' button is present inside the modal
-                close_btn = modal.get_by_role("button", name="Close", exact=True)
-                if not close_btn.is_visible():
-                    close_btn = modal.locator('button:has-text("Close"), [aria-label="Close"]').first
-                if close_btn.count() > 0 and close_btn.is_visible():
-                    try:
-                        close_btn.click(timeout=3000)
-                        page.wait_for_timeout(1000)
-                        return
-                    except PlaywrightError:
-                        pass
-
-                # Catch real identity verification modal overlay
-                if any(m in mtext for m in ("photo of your id", "selfie", "facial recognition", "verify your identity", "take a photo")):
-                    shot = save_screenshot(page, "identity-verification-modal-overlay")
-                    raise SecurityChallengeError(
-                        "Uber identity verification required: 'Take a photo of your ID and a selfie' modal overlay detected. "
-                        f"Complete verification manually via `python uber_prices.py open`. Screenshot: {shot}"
-                    )
     except PlaywrightError:
         pass
+
+    # 2. Check for interactive verification modals (ID/Selfie or Verification required)
+    is_present, modal_type = is_verification_modal_present(page)
+    if is_present:
+        print("\n" + "=" * 80)
+        print(f" [SECURITY CHALLENGE] VERIFICATION IS REQUIRED TO PROCEED")
+        print(f" Modal Detected: '{modal_type}'")
+        print(f" Keeping browser window OPEN for {wait_for_user_seconds} seconds.")
+        print(f" Please complete the verification steps in the browser window now...")
+        print("=" * 80 + "\n")
+
+        start_wait = time.perf_counter()
+        while time.perf_counter() - start_wait < wait_for_user_seconds:
+            time.sleep(1.5)
+            try:
+                if page.is_closed():
+                    break
+                still_present, _ = is_verification_modal_present(page)
+                if not still_present:
+                    print("\n[SECURITY] Verification completed or dismissed! Resuming extraction...\n")
+                    time.sleep(2.0)
+                    return
+            except PlaywrightError:
+                break
+
+        shot = save_screenshot(page, "verification-required-timeout")
+        raise SecurityChallengeError(
+            f"Verification is required to proceed ('{modal_type}' modal detected). Screenshot: {shot}"
+        )
+
+    # 3. Text marker check for non-interactive challenges (CAPTCHA / block pages)
+    for marker in CHALLENGE_MARKERS:
+        if marker in body:
+            shot = save_screenshot(page, "security-challenge")
+            raise SecurityChallengeError(
+                f"Uber security challenge/CAPTCHA detected ({marker!r}). Screenshot: {shot}"
+            )
 
 
 class LocationNotFoundError(ExtractorError):
@@ -531,11 +586,45 @@ class LocationSpec:
     def typed_text(self) -> str:
         return self.query or self.name
 
-    def matches(self, s: Suggestion) -> bool:
+    def _address_matches(self, s: Suggestion) -> bool:
+        """Strict physical address anchor: required address hints must appear, forbidden words must not."""
         address = f" {canonical_address(s.address)} "
-        return (normalize(s.name) in {normalize(n) for n in (self.name, *self.aliases)}
-                and all(f" {canonical_address(h)} " in address for h in self.address_hints)
+        return (all(f" {canonical_address(h)} " in address for h in self.address_hints)
                 and not any(f" {canonical_address(w)} " in address for w in self.address_not))
+
+    def matches_exact(self, s: Suggestion) -> bool:
+        """Priority 1: 100% exact word-for-word string match against name or any configured alias."""
+        if not self._address_matches(s):
+            return False
+        return normalize(s.name) in {normalize(n) for n in (self.name, *self.aliases)}
+
+    def matches_token_set(self, s: Suggestion) -> bool:
+        """Priority 2: Token-set (bag of words) match. Only evaluated if no exact match exists in the suggestion list."""
+        if not self._address_matches(s):
+            return False
+        norm_s = normalize(s.name)
+        s_tokens = set(norm_s.split())
+        accepted_names = {normalize(n) for n in (self.name, *self.aliases)}
+
+        # Check bag of words equality against expected name or aliases (handles word reordering)
+        for accepted in accepted_names:
+            if s_tokens == set(accepted.split()):
+                return True
+
+        # Check parenthetical code prefix transformation (e.g. "Miami International Airport (MIA)" -> "MIA - Miami International Airport")
+        code_match = re.search(r"\(([^)]+)\)", self.name)
+        if code_match:
+            code = normalize(code_match.group(1))
+            base_name = normalize(re.sub(r"\([^)]+\)", "", self.name))
+            base_tokens = set(base_name.split())
+            if s_tokens - {code} == base_tokens:
+                return True
+
+        return False
+
+    def matches(self, s: Suggestion) -> bool:
+        """Check exact match first, then token set match."""
+        return self.matches_exact(s) or self.matches_token_set(s)
 
     def __str__(self) -> str:
         names = " / ".join((self.name, *self.aliases))
@@ -545,23 +634,37 @@ class LocationSpec:
 
 def match_suggestion(spec: LocationSpec, suggestions: list[Suggestion]) -> Suggestion:
     """
-    Pick the single suggestion that exactly matches the requested location.
+    Pick the single suggestion that matches the requested location.
+    PRIORITY 1: 100% exact word-for-word string match against name or aliases.
+    PRIORITY 2: Token-set / bag-of-words match (only if Priority 1 finds 0 matches).
     Never falls back to a partial name or to the first / closest result: no match or several different
     matching places is an error, so a nearby place with a similar name can never be selected silently.
     """
-    matches = [s for s in suggestions if spec.matches(s)]
+    # Priority 1: Check for exact word-for-word match
+    exact_matches = [s for s in suggestions if spec.matches_exact(s)]
+    if exact_matches:
+        if len({(normalize(s.name), canonical_address(s.address)) for s in exact_matches}) > 1:
+            listed = "\n".join(f"    [{s.index}] {s}" for s in exact_matches)
+            raise AmbiguousLocationError(
+                f"{str(spec)!r} matches several different places. Nothing was selected.\n{listed}\n"
+                "  Add address words (or address_not) to pin one.")
+        return exact_matches[0]
+
+    # Priority 2: Fallback to token-set match ONLY if no exact match exists in the entire suggestion list
+    token_matches = [s for s in suggestions if spec.matches_token_set(s)]
+    if token_matches:
+        if len({(normalize(s.name), canonical_address(s.address)) for s in token_matches}) > 1:
+            listed = "\n".join(f"    [{s.index}] {s}" for s in token_matches)
+            raise AmbiguousLocationError(
+                f"{str(spec)!r} matches several different places via token-set matching. Nothing was selected.\n{listed}\n"
+                "  Add address words (or address_not) to pin one.")
+        return token_matches[0]
+
     choices = "\n".join(f"    [{s.index}] {s}" for s in suggestions) or "    (none)"
-    if not matches:
-        raise LocationNotFoundError(
-            f"No Uber suggestion exactly matches {str(spec)!r}. Nothing was selected.\n"
-            f"  Suggestions Uber showed:\n{choices}\n"
-            "  Use the exact name of the correct place (and address words to pin it).")
-    if len({(normalize(s.name), canonical_address(s.address)) for s in matches}) > 1:
-        listed = "\n".join(f"    [{s.index}] {s}" for s in matches)
-        raise AmbiguousLocationError(
-            f"{str(spec)!r} matches several different places. Nothing was selected.\n{listed}\n"
-            "  Add address words (or address_not) to pin one.")
-    return matches[0]
+    raise LocationNotFoundError(
+        f"No Uber suggestion exactly matches {str(spec)!r}. Nothing was selected.\n"
+        f"  Suggestions Uber showed:\n{choices}\n"
+        "  Use the exact name of the correct place (and address words to pin it).")
 
 
 def find_add_stop_button(page: Page):
@@ -707,9 +810,14 @@ def select_city(page: Page, city: str = "Miami", verbose: bool = True,
         print(f"\n[city] 'Search in a different city' option detected. Switching city to '{city}'...")
 
     try:
-        diff_city_item.click(timeout=5000)
-    except PlaywrightError:
-        diff_city_item.click(force=True)
+        diff_city_item.click(timeout=5000, no_wait_after=True)
+    except PlaywrightError as exc:
+        err_msg = str(exc).lower()
+        if "detached" not in err_msg and "stale" not in err_msg:
+            try:
+                diff_city_item.click(force=True, timeout=1500, no_wait_after=True)
+            except PlaywrightError:
+                pass
 
     human_pause(0.6, 1.2, scale=delay_scale, enabled=human_delays)
 
@@ -740,9 +848,14 @@ def select_city(page: Page, city: str = "Miami", verbose: bool = True,
         if verbose:
             txt = city_option.inner_text().replace('\n', ' ')
             print(f"  -> selected city: {txt}")
-        city_option.click(timeout=5000)
-    except PlaywrightError:
-        city_option.click(force=True)
+        city_option.click(timeout=5000, no_wait_after=True)
+    except PlaywrightError as exc:
+        err_msg = str(exc).lower()
+        if "detached" not in err_msg and "stale" not in err_msg:
+            try:
+                city_option.click(force=True, timeout=1500, no_wait_after=True)
+            except PlaywrightError:
+                pass
 
     human_pause(1.5, 2.5, scale=delay_scale, enabled=human_delays)
     return True
@@ -853,9 +966,14 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
     if human_delays and delay_scale > 0:
         human_mouse_move(page, target_option)
     try:
-        target_option.click(timeout=5000)
-    except PlaywrightError:
-        target_option.click(force=True)
+        target_option.click(timeout=4000, no_wait_after=True)
+    except PlaywrightError as exc:
+        err_msg = str(exc).lower()
+        if "detached" not in err_msg and "stale" not in err_msg:
+            try:
+                target_option.click(force=True, timeout=1500, no_wait_after=True)
+            except PlaywrightError:
+                pass
     try:
         target_param = url_param_for_role(role, stop_index, total_stops)
         page.wait_for_url(lambda url: url != before and target_param in parse_qs(urlparse(url).query),
@@ -868,8 +986,9 @@ def select_location(page: Page, role: str, spec: LocationSpec | str, verbose: bo
         shot = save_screenshot(page, f"{role}-not-confirmed")
         raise WrongLocationSelectedError(
             f"Clicked {chosen.name!r} but could not confirm Uber's {role} selection. Screenshot: {shot}")
-    accepted = {normalize(chosen.name), normalize(re.sub(r"\s*\([^)]*\)\s*$", "", chosen.name))}
-    name_ok = normalize(selected.name) in accepted
+    accepted = {normalize(chosen.name), normalize(re.sub(r"\s*\([^)]*\)\s*$", "", chosen.name)),
+                normalize(spec.name), *(normalize(a) for a in spec.aliases)}
+    name_ok = normalize(selected.name) in accepted or spec.matches(selected)
     if not name_ok and "," in selected.name:
         head, suffix = selected.name.rsplit(",", 1)
         name_ok = (normalize(head) in accepted and normalize(suffix) != ""
@@ -913,14 +1032,37 @@ def select_route_ui(page: Page, pickup_query: LocationSpec | str,
         # Defocus/blur suggestion dropdown before looking for Add stop button
         try:
             page.keyboard.press("Escape")
+            page.wait_for_timeout(200)
+
+            # Move mouse smoothly to the clean empty space on the left side of the location box and click
+            pudo_cnt = page.locator('[data-testid="pudo-select-v2"]').count()
+            target_container = page.locator('[data-testid="pudo-select-v2"]').nth(1) if pudo_cnt > 1 else page.locator('[data-testid="pudo-select-v2"]').first
+            box = target_container.bounding_box() if pudo_cnt > 0 else None
+            if box and box["x"] > 20:
+                click_x = random.uniform(10, min(35, box["x"] - 10))
+                click_y = box["y"] + random.uniform(5, max(10, box["height"] - 5))
+            else:
+                click_x = random.uniform(15, 30)
+                click_y = random.uniform(220, 320)
+
+            if human_delays and delay_scale > 0:
+                page.mouse.move(click_x, click_y, steps=random.randint(4, 8))
+            else:
+                page.mouse.move(click_x, click_y)
+            page.mouse.click(click_x, click_y)
             page.wait_for_timeout(300)
-            heading = page.get_by_role("heading", name="Get a ride")
-            if heading.count() > 0 and heading.first.is_visible():
-                heading.first.click(timeout=1000)
+            page.evaluate("() => document.activeElement && document.activeElement.blur()")
         except Exception:
             pass
 
-        add_btn = find_add_stop_button(page)
+        # Allow up to 2 seconds for DOM/slide animation to display the '+' button
+        add_btn = None
+        for _ in range(5):
+            add_btn = find_add_stop_button(page)
+            if add_btn:
+                break
+            page.wait_for_timeout(400)
+
         if not add_btn:
             shot = save_screenshot(page, f"add-stop-{idx+1}-missing")
             raise AddStopButtonNotFoundError(
@@ -1052,7 +1194,7 @@ def safe_click(locator, what: str) -> None:
     try:
         locator.click(timeout=5000)
     except PlaywrightError:
-        locator.click(force=True)
+        locator.click(force=True, timeout=2000)
 
 
 
@@ -1098,8 +1240,23 @@ def handle_airport_airline_popup(page: Page, verbose: bool = True) -> bool:
             try:
                 skip_btn.click(timeout=3000)
             except PlaywrightError:
-                skip_btn.click(force=True)
+                skip_btn.click(force=True, timeout=1500)
             page.wait_for_timeout(1000)
+            return True
+    except PlaywrightError:
+        pass
+    return False
+
+
+def is_already_on_product_selection(page: Page) -> bool:
+    """Check if Uber's frontend already auto-navigated to the pricing screen."""
+    if "/go/product-selection" in page.url:
+        return True
+    try:
+        if page.locator(RIDE_OPTION_SELECTOR).count() > 0:
+            return True
+        headings = [h.strip().lower() for h in page.get_by_role("heading").all_inner_texts() if h.strip()]
+        if any("choose a ride" in h or "rides we think" in h for h in headings):
             return True
     except PlaywrightError:
         pass
@@ -1109,16 +1266,25 @@ def handle_airport_airline_popup(page: Page, verbose: bool = True) -> bool:
 def search_rides(page: Page, pickup: SelectedLocation, destination: SelectedLocation,
                  screenshot_before: bool = True, human_delays: bool = True,
                  delay_scale: float = 1.0, stops: list[SelectedLocation] | None = None) -> int:
-    """Click Search and wait until Uber actually shows priced ride options. Returns the number of priced rows."""
-    if "/go/product-selection" in page.url:
+    """Click Search and wait until Uber actually shows priced ride options. Handles automatic navigation."""
+    if is_already_on_product_selection(page):
         print("\n[info] Page already on product selection, waiting for ride options...")
         return wait_for_ride_options(page, pickup, destination, stops=stops)
-    button = find_search_button(page)
-    if screenshot_before:
-        before = save_screenshot(page, "before-search")
-        print(f"\n[info] Clicking 'Search' (screenshot before: {before})")
-    human_pause(0.8, 1.8, scale=delay_scale, enabled=human_delays)
-    safe_click(button, "the Search button")
+
+    try:
+        button = find_search_button(page)
+        if screenshot_before:
+            before = save_screenshot(page, "before-search")
+            print(f"\n[info] Clicking 'Search' (screenshot before: {before})")
+        human_pause(0.8, 1.8, scale=delay_scale, enabled=human_delays)
+        safe_click(button, "the Search button")
+    except ExtractorError:
+        page.wait_for_timeout(1000)
+        if is_already_on_product_selection(page):
+            print("\n[info] Uber auto-navigated to product selection during search dispatch.")
+            return wait_for_ride_options(page, pickup, destination, stops=stops)
+        raise
+
     handle_airport_airline_popup(page)
     return wait_for_ride_options(page, pickup, destination, stops=stops)
 
@@ -1127,30 +1293,36 @@ def wait_for_ride_options(page: Page, pickup: SelectedLocation, destination: Sel
                            stops: list[SelectedLocation] | None = None) -> int:
     """Wait until /go/product-selection shows ride rows with prices, for exactly this route."""
     handle_airport_airline_popup(page)
-    try:
-        page.wait_for_url("**/go/product-selection**", timeout=RESULTS_TIMEOUT_MS, wait_until="commit")
-    except PlaywrightError:
-        if handle_airport_airline_popup(page):
-            try:
-                page.wait_for_url("**/go/product-selection**", timeout=RESULTS_TIMEOUT_MS, wait_until="commit")
-            except PlaywrightError:
+    if "/go/product-selection" not in page.url:
+        try:
+            page.wait_for_url("**/go/product-selection**", timeout=RESULTS_TIMEOUT_MS, wait_until="commit")
+        except PlaywrightError:
+            if handle_airport_airline_popup(page):
+                try:
+                    page.wait_for_url("**/go/product-selection**", timeout=RESULTS_TIMEOUT_MS, wait_until="commit")
+                except PlaywrightError:
+                    shot = save_screenshot(page, "results-no-navigation")
+                    raise RideOptionsNotLoadedError(
+                        f"Search did not open the ride options page.\n  {page_summary(page)}\n  Screenshot: {shot}")
+            else:
                 shot = save_screenshot(page, "results-no-navigation")
                 raise RideOptionsNotLoadedError(
                     f"Search did not open the ride options page.\n  {page_summary(page)}\n  Screenshot: {shot}")
-        else:
-            shot = save_screenshot(page, "results-no-navigation")
-            raise RideOptionsNotLoadedError(
-                f"Search did not open the ride options page.\n  {page_summary(page)}\n  Screenshot: {shot}")
 
     # The URL change alone is not success: wait until ride rows with a visible price are rendered.
+    check_security_challenge(page, wait_for_user_seconds=30)
     try:
         count = wait_for_stable_priced_rows(page)
     except PlaywrightError:
         handle_airport_airline_popup(page)
-        shot = save_screenshot(page, "results-no-prices")
-        raise RideOptionsNotLoadedError(
-            f"Ride options page opened but no stable list of priced rides appeared.\n"
-            f"  {page_summary(page)}\n  Screenshot: {shot}")
+        check_security_challenge(page, wait_for_user_seconds=30)
+        try:
+            count = wait_for_stable_priced_rows(page)
+        except PlaywrightError:
+            shot = save_screenshot(page, "results-no-prices")
+            raise RideOptionsNotLoadedError(
+                f"Ride options page opened but no stable list of priced rides appeared.\n"
+                f"  {page_summary(page)}\n  Screenshot: {shot}")
     verify_route_in_url(page, pickup, destination, stops=stops)
     return count
 
@@ -1510,14 +1682,65 @@ def save_screenshot(page: Page, label: str) -> Path | None:
         return None
 
 
+PROXY_ERROR_PATTERNS = (
+    "net::ERR_TUNNEL_CONNECTION_FAILED",
+    "net::ERR_TIMED_OUT",
+    "net::ERR_PROXY_CONNECTION_FAILED",
+    "net::ERR_CONNECTION_RESET",
+    "net::ERR_EMPTY_RESPONSE",
+    "Timeout",
+)
+
+
+def navigate_with_proxy_retry(
+    page: Page,
+    url: str,
+    wait_until: str = "domcontentloaded",
+    timeout: int = 25_000,
+    max_attempts: int = 4,
+    retry_delays: tuple = (15, 30, 45),
+    action_label: str = "navigation",
+) -> None:
+    """
+    Load a URL with progressive backoff across 4 attempts (~2 mins total) to handle Oxylabs proxy hiccups.
+    If all attempts fail, raises ProxyConnectionError for graceful batch termination.
+    """
+    last_exc = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            page.goto(url, wait_until=wait_until, timeout=timeout)
+            if attempt > 1:
+                print(f"[PROXY] Connected successfully on attempt {attempt} for {action_label}!")
+            return
+        except PlaywrightError as exc:
+            last_exc = exc
+            err_msg = str(exc)
+            is_proxy_issue = any(pat in err_msg for pat in PROXY_ERROR_PATTERNS)
+
+            if is_proxy_issue and attempt < max_attempts:
+                wait_sec = retry_delays[attempt - 1]
+                first_line = exc.message.splitlines()[0] if hasattr(exc, "message") else str(exc)
+                print(f"\n[PROXY RETRY {attempt}/{max_attempts}] {action_label.capitalize()} failed: {first_line}")
+                print(f"[PROXY RETRY] Waiting {wait_sec}s for Oxylabs proxy to recover before retry {attempt + 1}...")
+                time.sleep(wait_sec)
+                continue
+            elif not is_proxy_issue:
+                raise
+
+    first_err = last_exc.message.splitlines()[0] if hasattr(last_exc, "message") else str(last_exc)
+    raise ProxyConnectionError(
+        f"Oxylabs residential proxy unreachable after {max_attempts} attempts (~2 mins). Last error: {first_err}"
+    )
+
+
 def ensure_logged_in(page: Page) -> None:
     """
     Open the rider booking page and confirm Uber treats this profile as logged in.
-    Raises LoginRequiredError / SecurityChallengeError with a clear reason otherwise.
+    Raises LoginRequiredError / SecurityChallengeError / ProxyConnectionError with a clear reason otherwise.
     Never enters credentials or interacts with challenges.
     """
-    # No "networkidle" wait: the live map keeps loading tiles, so it cost a fixed ~15s per check.
-    page.goto(UBER_BOOKING_URL, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+    # Progressive retry navigation handles transient Oxylabs proxy dropouts (~2 mins)
+    navigate_with_proxy_retry(page, UBER_BOOKING_URL, wait_until="domcontentloaded", action_label="initial login check")
 
     host = page.url.split("/")[2] if "://" in page.url else page.url
     if host.startswith("auth.") or "/login" in page.url:
@@ -1996,11 +2219,14 @@ CONFIG_ERROR = "CONFIG_ERROR"
 ERROR = "ERROR"
 SKIPPED_MULTI_STOP = "SKIPPED_MULTI_STOP"
 NOT_RUN = "NOT_RUN"  # batch stopped before this route
+PROXY_CONNECTION_FAILED = "PROXY_CONNECTION_FAILED"
 # Failures after which continuing makes no sense (every later route would fail the same way).
-STOP_BATCH_STATUSES = {AUTH_REQUIRED, SECURITY_CHALLENGE, BROWSER_CRASH}
+STOP_BATCH_STATUSES = {AUTH_REQUIRED, SECURITY_CHALLENGE, BROWSER_CRASH, PROXY_CONNECTION_FAILED}
 
 
 def classify_failure(exc: Exception) -> str:
+    if isinstance(exc, ProxyConnectionError):
+        return PROXY_CONNECTION_FAILED
     if isinstance(exc, LoginRequiredError):
         return AUTH_REQUIRED
     if isinstance(exc, SecurityChallengeError):
@@ -2032,13 +2258,13 @@ def classify_failure(exc: Exception) -> str:
 
 def open_booking_page(page: Page) -> None:
     """Fresh booking page for the next route (same tab). Detects expired session / challenges."""
-    page.goto(UBER_BOOKING_URL, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+    navigate_with_proxy_retry(page, UBER_BOOKING_URL, wait_until="domcontentloaded", action_label="route booking page load")
     host = urlparse(page.url).netloc
     if host.startswith("auth.") or "/login" in page.url:
         raise LoginRequiredError(f"Uber redirected to the login page ({host}): session expired.")
     check_security_challenge(page)
     try:
-        location_field(page, "pickup").wait_for(state="visible", timeout=20_000)
+        location_field(page, "pickup").wait_for(state="visible", timeout=30_000)
     except PlaywrightError:
         check_security_challenge(page)
         if page.get_by_role("button", name="Log in").count() or page.get_by_role("link", name="Log in").count():
@@ -2084,8 +2310,12 @@ def open_route(page: Page, pickup: SelectedLocation, pickup_raw: str,
         params[f"drop[{idx}]"] = stop_raw
     params[f"drop[{total_stops}]"] = destination_raw
 
-    page.goto(f"{UBER_ROUTE_URL}?{urlencode(params)}",
-              wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+    navigate_with_proxy_retry(
+        page,
+        f"{UBER_ROUTE_URL}?{urlencode(params)}",
+        wait_until="domcontentloaded",
+        action_label="route url load",
+    )
     host = urlparse(page.url).netloc
     if host.startswith("auth.") or "/login" in page.url:
         raise LoginRequiredError(f"Uber redirected to the login page ({host}): session expired.")
@@ -2524,8 +2754,8 @@ def result_csv_rows(batch_id: str, rec: dict) -> list[dict]:
     """One row per extracted ride for a successful route; one status row for any other outcome."""
     stops_str = "|".join(rec.get("stops_labels") or [])
     account_str = rec.get("account") or rec.get("account_name") or ""
-    base = {"run_id": batch_id, "account": account_str, "route_id": rec["id"], "source": rec["pickup_label"],
-            "stops": stops_str, "destination": rec["destination_label"], "status": rec["status"],
+    base = {"run_id": batch_id, "account": account_str, "route_id": rec.get("id", ""), "source": rec.get("pickup_label", "-"),
+            "stops": stops_str, "destination": rec.get("destination_label", "-"), "status": rec["status"],
             "reason": (rec.get("reason") or "").splitlines()[0] if rec.get("reason") else ""}
     res = rec.get("result")
     if rec["status"] == SUCCESS and res:
@@ -2659,13 +2889,30 @@ def cmd_batch(args: argparse.Namespace) -> int:
             meta["resources_after_login"] = monitor.snapshot(context, page)
         except ExtractorError as exc:
             status = classify_failure(exc)
-            hint = ("Log in manually via `python uber_prices.py open --account <name>`, then re-run."
+            hint = ("Check proxy configuration/Oxylabs connection, then re-run."
+                    if status == PROXY_CONNECTION_FAILED else
+                    "Log in manually via `python uber_prices.py open --account <name>`, then re-run."
                     if status in (AUTH_REQUIRED, SECURITY_CHALLENGE) else "Check the screenshot, then re-run.")
-            print(f"[SESSION] {status}: {exc}\n[BATCH] Stopped before any route. {hint}")
-            records = [{"id": r["id"], "category": r.get("category"), "pickup_label": r["pickup"],
-                        "destination_label": r["destination"], "account": active_acc_name, "status": NOT_RUN, "reason": status,
-                        "failed_phase": None, "timings": {}, "prices_count": 0, "result": None} for r in routes]
-            meta["stopped_reason"] = status
+            print(f"\n{'='*80}")
+            print(f"[TERMINATION] Batch halted: {status}")
+            print(f"Reason: {exc}")
+            print(f"Hint: {hint}")
+            print(f"{'='*80}\n")
+            records = [{
+                "id": "",
+                "category": None,
+                "pickup_label": "-",
+                "destination_label": "-",
+                "stops_labels": [],
+                "account": active_acc_name,
+                "status": status,
+                "reason": f"Batch stopped: {status} ({str(exc).splitlines()[0]})",
+                "failed_phase": None,
+                "timings": {},
+                "prices_count": 0,
+                "result": None,
+            }]
+            meta["stopped_reason"] = f"{status}: {exc}"
             routes = []
             exit_code = 1
 
@@ -2716,14 +2963,10 @@ def cmd_batch(args: argparse.Namespace) -> int:
             if search_unavailable_streak >= SEARCH_UNAVAILABLE_STOP_AFTER:
                 stop_reason = f"{SEARCH_UNAVAILABLE} x{search_unavailable_streak}"
             if stop_reason:
-                print(f"\n[BATCH] Stopping: {stop_reason}. Remaining routes are marked NOT_RUN.")
-                meta["stopped_reason"] = stop_reason
-                for rest in routes[n:]:
-                    records.append({"id": rest["id"], "category": rest.get("category"),
-                                    "pickup_label": rest["pickup"], "destination_label": rest["destination"],
-                                    "account": active_acc_name,
-                                    "status": NOT_RUN, "reason": f"Batch stopped after {stop_reason}",
-                                    "failed_phase": None, "timings": {}, "prices_count": 0, "result": None})
+                exact_reason = (rec.get("reason") or "").splitlines()[0] if rec.get("reason") else f"Batch stopped after {stop_reason}"
+                print(f"\n[BATCH] Stopping: {stop_reason}. Reason: {exact_reason}")
+                print(f"[BATCH] Terminating batch cleanly without appending duplicate remaining routes.\n")
+                meta["stopped_reason"] = exact_reason
                 exit_code = 1
                 break
         flush_csv()  # NOT_RUN rows from an early stop or a failed session check
