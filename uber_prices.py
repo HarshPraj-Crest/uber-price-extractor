@@ -542,6 +542,7 @@ ADDRESS_ABBREVIATIONS = {
     "avenue": "ave", "av": "ave", "street": "st", "boulevard": "blvd", "drive": "dr", "road": "rd",
     "court": "ct", "place": "pl", "lane": "ln", "terrace": "ter", "highway": "hwy", "parkway": "pkwy",
     "circle": "cir", "square": "sq", "trail": "trl", "causeway": "cswy", "suite": "ste",
+    "plaza": "plz", "plz": "plz",
     "north": "n", "south": "s", "east": "e", "west": "w",
     "northeast": "ne", "northwest": "nw", "southeast": "se", "southwest": "sw",
     "florida": "fl",
